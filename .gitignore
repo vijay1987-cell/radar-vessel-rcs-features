@@ -1,0 +1,32 @@
+# Data — never commit proprietary radar data
+*.csv
+*.parquet
+*.h5
+*.hdf5
+data/
+
+# Trained weights — large binary files
+*.pt
+*.pkl
+*.joblib
+
+# LaTeX build artifacts
+*.aux
+*.log
+*.out
+*.toc
+*.synctex.gz
+*.fls
+*.fdb_latexmk
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+.env
+
+# OS
+.DS_Store
+Thumbs.db

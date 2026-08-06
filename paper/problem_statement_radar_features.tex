@@ -1,0 +1,251 @@
+\documentclass[10.5pt,a4paper]{article}
+\usepackage[top=2.0cm,bottom=2.0cm,left=2.2cm,right=2.2cm]{geometry}
+\usepackage{booktabs}
+\usepackage{amsmath}
+\usepackage{parskip}
+\usepackage{enumitem}
+\usepackage{titlesec}
+\usepackage{microtype}
+\usepackage{array}
+\usepackage[hidelinks]{hyperref}
+
+\setlength{\parskip}{4pt}
+\titleformat{\section}{\normalsize\bfseries\uppercase}{}{0em}{}[\vspace{-2pt}\hrule\vspace{2pt}]
+\titlespacing{\section}{0pt}{8pt}{4pt}
+\titleformat{\subsection}{\normalsize\itshape}{}{0em}{}
+\titlespacing{\subsection}{0pt}{5pt}{2pt}
+
+\title{\textbf{Radar Feature Discriminability for Maritime Vessel Classification:\\
+A Physics-Constrained Open Problem}\\[2pt]
+\small\normalfont Prepared for expert consultation — strictly confidential,
+not for circulation}
+\author{\small Vijay Kumar V \quad|\quad Independent Researcher and Innovator,
+Bangalore, India}
+\date{\small August 2026}
+
+\begin{document}
+\maketitle\vspace{-8pt}
+\hrule\vspace{6pt}
+
+% ── Background ───────────────────────────────────────────────────────────────
+\section{Background and Problem}
+
+A land-based coastal surveillance radar collects amplitude returns from maritime
+vessels at ranges of 5--50\,km. The goal is to classify vessel type
+(Fishing / Tug / Cargo / Tanker) using only the radar return — with no reliance on
+AIS transponder data, which can be spoofed or disabled. After exhaustive derivation
+and statistical evaluation of every feature obtainable from the amplitude-only radar
+output, it has been established that Cargo and Tanker vessels \textbf{cannot be
+reliably discriminated} using the current feature set.
+
+The conclusion is that this is a measurement physics constraint, not a processing
+limitation. This document seeks expert guidance on whether the existing radar
+receiver output contains additional physical information — accessible through
+receiver tuning or processing parameter changes alone — that could provide the
+needed discriminatory power.
+
+\textbf{Hard constraint: no hardware modifications are possible.} The radar operates
+within a secure facility. Transmitter, antenna, waveform, carrier frequency, and
+polarisation are fixed. Only receiver settings, clutter filter parameters, integration
+mode, and post-detection processing choices are adjustable.
+
+% ── Dataset ──────────────────────────────────────────────────────────────────
+\section{Dataset Summary}
+
+\begin{center}\small
+\begin{tabular}{lrrr}
+\toprule
+Vessel class & Detections & Tracks & Range (median) \\
+\midrule
+Fishing (small commercial fishing vessel) & 1,878 & 65 & 14\,km \\
+Tug (harbour / ocean tug)                 & 1,823 & 37 & 20\,km \\
+Cargo (bulk carrier / container ship)     & 4,500 & 264 & 30\,km \\
+Tanker (oil / chemical / LNG tanker)      & 4,109 & 156 & 30\,km \\
+\midrule
+Total & 12,310 & 510 & \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Ground truth vessel type is from AIS records matched by position and time.
+AIS-reported dimensions (length, beam) are excluded from all analysis: they are
+transponder-provided labels, not radar observables.
+
+% ── Features ─────────────────────────────────────────────────────────────────
+\section{Features Derived from the Radar Return}
+
+All features below are derived solely from the per-detection amplitude and spatial
+extent outputs of the existing radar processing chain. The $R^{4}$ range correction
+($\ln A + 4\ln R$) is applied to amplitude features to remove range-dependent
+sensitivity variation.
+
+\begin{center}\small
+\begin{tabular}{ll}
+\toprule
+Feature & Physical basis \\
+\midrule
+Log peak RCS & Peak cell amplitude, $R^4$-corrected — vessel's dominant scatterer \\
+Log total RCS & Sum of all cell amplitudes, $R^4$-corrected — total scattering power \\
+RCS concentration & Peak / total ratio — point vs.\ distributed scatterer \\
+Aspect ratio & Cross-range extent / down-range extent — vessel orientation proxy \\
+Footprint area (m$^2$) & Product of range and azimuth extents — coarse vessel size \\
+Down-range extent (m) & Detection span in range — vessel radial length proxy \\
+Cross-range extent (m) & Detection span in azimuth — vessel lateral size proxy \\
+Range (m) & Slant range — retained as a confound covariate, not a vessel property \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+% ── Statistical evidence ─────────────────────────────────────────────────────
+\section{Statistical Evidence for the Feature Ceiling}
+
+Cohen's~$d$ (standardised mean difference) quantifies inter-class separation per
+feature. Values $d < 0.5$ indicate distributions that overlap substantially;
+$d \geq 1.0$ is the practical threshold for reliable single-feature discrimination.
+
+\begin{center}\small
+\begin{tabular}{lrrrrrr}
+\toprule
+Feature & Fis--Tug & Fis--Car & Fis--Tan & Tug--Car & Tug--Tan & \textbf{Car--Tan} \\
+\midrule
+Log peak RCS        & 0.47 & 1.29 & 1.80 & 0.84 & 1.25 & \textbf{0.20} \\
+Log total RCS       & 0.87 & 1.59 & 2.52 & 0.82 & 1.49 & \textbf{0.33} \\
+RCS concentration   & 0.98 & 0.51 & 1.32 & 0.13 & 0.25 & \textbf{0.26} \\
+Aspect ratio        & 0.24 & 0.49 & 1.00 & 0.16 & 0.53 & \textbf{0.44} \\
+Footprint (m$^2$)  & 0.92 & 1.36 & 2.09 & 0.52 & 1.17 & \textbf{0.44} \\
+Down-range (m)      & 0.29 & 1.14 & 1.45 & 0.98 & 1.28 & \textbf{0.05} \\
+Cross-range (m)     & 0.90 & 0.98 & 1.15 & 0.13 & 0.38 & \textbf{0.56} \\
+\midrule
+\textbf{Maximum}    & 0.98 & 1.59 & 2.52 & 0.98 & 1.49 & \textbf{0.56} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Every class pair except Cargo--Tanker achieves $d \geq 0.98$ on at least one feature.
+Cargo and Tanker reach a ceiling of $d = 0.56$ across all features combined.
+Both vessel types operate at identical median ranges (30\,km), ruling out range bias.
+Cargo and Tanker are both large steel-hulled vessels of overlapping physical size;
+their amplitude-only radar signatures are near-indistinguishable by any combination
+of the features above.
+
+% ── Exhaustive feature engineering ────────────────────────────────────────────
+\section{Exhaustive Feature Engineering: Ceiling Confirmed}
+
+Three additional computational approaches were applied to verify the ceiling
+is not a processing artefact and that no transformation of the existing
+amplitude data recovers the missing discriminatory information.
+
+\textbf{(1) Temporal fractal complexity of per-track RCS sequences.}
+Higuchi fractal dimension, Petrosian FD, sample entropy, and Hurst exponent
+were computed on the scan-to-scan RCS amplitude sequence for each vessel track.
+These quantify whether the \emph{fluctuation pattern} across antenna rotations
+— rather than the mean amplitude level — differs between vessel structural types.
+Best Cargo--Tanker $d$: Hurst exponent on log-total-RCS $= 0.245$;
+Higuchi FD $= 0.160$.
+Neither approaches the $d = 0.56$ ceiling; the fluctuation pattern does not
+encode structural differences accessible from the existing processed data.
+
+\textbf{(2) Feature-space self-similarity (local intrinsic dimensionality).}
+Local Intrinsic Dimensionality (LID) and multiscale neighbourhood density
+were computed per detection across five feature subspaces to test whether
+Cargo and Tanker occupy geometrically distinct regions of the feature space —
+independent of their marginal amplitude distributions.
+
+\begin{center}\small
+\begin{tabular}{lcc}
+\toprule
+Subspace & Best Car--Tan $d$ & Feature type \\
+\midrule
+Amplitude only (3-D) & 0.393 & Neighbourhood density \\
+RCS-5 features (5-D) & 0.333 & Neighbourhood density \\
+Without range (7-D)  & 0.226 & Correlation dimension \\
+Full feature set (8-D) & 0.194 & Neighbourhood density \\
+Geometry only (4-D)  & 0.185 & Local intrinsic dimension \\
+\midrule
+\textbf{Amplitude feature ceiling} & \textbf{0.560} & Cross-range extent \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Cargo and Tanker detections are \textbf{geometrically co-located} in every
+subspace tested: same neighbourhood density, same local dimensionality,
+same correlation dimension. Restricting to the amplitude-only subspace
+gives the highest self-similarity separation ($d = 0.393$), but still
+30\% below the direct feature ceiling. Adding geometric dimensions
+progressively dilutes rather than reveals structure.
+
+\textbf{Conclusion.} The $d = 0.56$ ceiling is not a feature engineering
+gap. No nonlinear transformation, fractal measure, or geometric analysis
+of the existing amplitude-based features recovers additional discriminatory
+information. The physically missing observable must originate from a
+different property of the radar return — one not present in the
+post-integration per-scan amplitude output of the current processing chain.
+
+% ── The question ─────────────────────────────────────────────────────────────
+\section{The Question Posed to the Expert}
+
+\begin{quote}
+\itshape
+Given a fixed-hardware, amplitude-only, single-polarisation marine surveillance
+radar: does the electromagnetic return from a large steel vessel at 20--50\,km
+encode physical information that distinguishes a structurally complex vessel
+(container ship: heterogeneous deck cargo, cranes, hatches) from a structurally
+simpler vessel (tanker: smooth low-profile hull and deck), and if so, can this
+information be extracted through receiver tuning or processing parameter changes
+alone — without any hardware modification?
+\end{quote}
+
+Specific aspects where expert insight is sought:
+
+\begin{enumerate}[noitemsep, leftmargin=*, label=\arabic*.]
+
+  \item \textbf{Scan-to-scan amplitude fluctuation statistics.}
+  The vessel RCS changes from one antenna rotation to the next. A container ship's
+  structurally complex deck may produce a different fluctuation regime (Swerling
+  model, variance, autocorrelation length) than a smooth tanker hull.
+  \textit{Is this distinction physically expected? How many consecutive scans are
+  needed to estimate it reliably, and which receiver integration setting best
+  preserves this information?}
+
+  \item \textbf{Within-dwell amplitude distribution.}
+  Multiple pulses illuminate the vessel per beam dwell. The per-pulse amplitude
+  sequence before integration may encode structural complexity.
+  \textit{Is this within-dwell distribution (skewness, pulse-to-pulse variance)
+  expected to differ between vessel structural types? Is it accessible through
+  receiver output logging without hardware change?}
+
+  \item \textbf{Doppler content and clutter filter tuning.}
+  The existing clutter filter suppresses slow targets including vessel Doppler.
+  \textit{If the filter cutoff is lowered (a tunable parameter), is bulk vessel
+  Doppler or sub-resolution scatterer motion (propeller, rotating machinery)
+  expected to appear in the output? Would that motion signature differ between
+  a diesel-direct-drive cargo vessel and a slow-speed tanker drive system,
+  and at what filter setting would it become accessible?}
+
+  \item \textbf{Clutter interaction geometry.}
+  The vessel modifies the surrounding sea clutter field (shadow, bow-wave, wake).
+  This is present in the radar picture but not currently extracted.
+  \textit{Is this interaction geometry expected to differ between vessel types?
+  What detection threshold or CFAR guard-band adjustment would expose it?}
+
+  \item \textbf{Any other receiver-accessible physical observable.}
+  \textit{Is there a property of the radar-target interaction — not listed above
+  — that is physically expected to correlate with vessel structural type and
+  is accessible through receiver settings or processing changes on this
+  fixed-hardware system?}
+
+\end{enumerate}
+
+For any property identified, the author requests an assessment of: (a)~its physical
+origin, (b)~the specific receiver or processing parameter that controls its
+observability, and (c)~a rough expectation of the inter-class separability relative
+to the $d = 0.56$ ceiling currently achieved.
+
+\vspace{6pt}
+\noindent\rule{\linewidth}{0.4pt}\\[2pt]
+\noindent\small\textit{This document is shared in strict confidence.
+The associated classification methodology and findings are the intellectual
+property of Vijay Kumar V and have not been publicly disclosed.
+Please do not circulate without the author's written permission.}
+
+\end{document}

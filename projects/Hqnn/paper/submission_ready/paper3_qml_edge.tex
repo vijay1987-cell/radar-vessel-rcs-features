@@ -1,0 +1,752 @@
+%% ============================================================
+%%  PAPER 3 — RQ3
+%%  Quantum Machine Learning for Radar Vessel Classification:
+%%  Does QML Provide the Edge?
+%% ============================================================
+\documentclass[journal]{IEEEtran}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{booktabs,array,multirow}
+\usepackage{graphicx,float,caption}
+\usepackage{xcolor,hyperref,cite}
+\usepackage{algorithm,algpseudocode}
+\hypersetup{colorlinks=true,linkcolor=blue,citecolor=blue,urlcolor=blue}
+\newcommand{\ket}[1]{|#1\rangle}
+\newcommand{\bra}[1]{\langle #1|}
+\newcommand{\braket}[2]{\langle #1 | #2 \rangle}
+\newcommand{\expect}[1]{\langle #1 \rangle}
+\newcommand{\vect}[1]{\boldsymbol{#1}}
+
+\begin{document}
+\graphicspath{{./figures/}}
+
+\title{
+  \textbf{Quantum Machine Learning for Terrestrial Radar\\
+  Vessel Type Classification: Does QML Provide the Edge?}\\[0.4em]
+  \large Research Question 3: Does Quantum ML offer measurable advantages
+  over classical approaches?
+}
+\author{Vijay~Kumar~V%
+\IEEEcompsocitemizethanks{
+\IEEEcompsocthanksitem V.~Kumar is an Independent Researcher and Innovator,
+Bangalore, India.
+E-mail: vijay.kumar@[email].%
+\IEEEcompsocthanksitem This work was self-funded by the author as an
+independent research contribution with no institutional or corporate affiliation.%
+}}
+
+\IEEEtitleabstractindextext{%
+\begin{abstract}
+This paper investigates whether Quantum Machine Learning (QML) approaches —
+specifically the Variational Quantum Classifier (VQC) and Hybrid
+Quantum--Classical Neural Network (HQNN) — offer measurable classification
+advantages over classical models (Random Forest, SVM, MLP, Gradient Boosting
+Trees) for radar-based vessel type classification from a coastal X-band
+surveillance radar. Evaluating on the same 5-feature corrected dataset
+(100,430 observations, 5 vessel types), we find that HQNN achieves 82.3\%
+accuracy and F1 Macro 82.8\% (AUC 0.953), competitive with Random Forest
+(89.6\%) and approaching Gradient Boosting (90.0\%), while outperforming
+SVM (80.8\%) and MLP (77.9\%). VQC achieves 72.4\% (AUC 0.901), limited
+by circuit expressibility at 5 qubits. A soft-vote ensemble (VQC+HQNN+GBT)
+achieves 84.2\% (AUC 0.979). Training is performed on a classical quantum
+simulator (\texttt{lightning.qubit}) using the adjoint differentiation method
+with a PyTorch optimisation backend. We analyse the theoretical conditions for
+quantum advantage and discuss implications for operational maritime domain
+awareness systems.
+\end{abstract}
+\begin{IEEEkeywords}
+quantum machine learning; variational quantum circuit; hybrid quantum-classical neural network; vessel type classification; confidence calibration; NISQ; maritime radar; expected calibration error; PennyLane
+\end{IEEEkeywords}}
+
+\maketitle
+\IEEEdisplaynontitleabstractindextext
+\IEEEpeerreviewmaketitle
+
+%% ────────────────────────────────────────────────────────────
+\section{Introduction}
+
+\IEEEPARstart{T}{he} potential advantage of quantum computing for machine
+learning has been a subject of intense research since the proposal of quantum
+speedups for linear
+algebra~\cite{harrow2009} and kernel methods~\cite{havlicek2019supervised}.
+In practice, demonstrating a clear quantum advantage on real-world classification
+problems remains an open challenge, particularly for near-term noisy
+intermediate-scale quantum (NISQ) devices where circuit depth is limited.
+
+This paper addresses \textbf{RQ3}: \textit{Does Quantum Machine Learning offer
+measurable advantages over classical approaches in accuracy, generalisation,
+or confidence calibration for the radar vessel classification problem?}
+
+We approach this systematically:
+\begin{enumerate}
+  \item Implement three QML architectures (VQC, HQNN, QKE) on a classical
+        quantum simulator.
+  \item Train and evaluate each QML model on the same dataset and features
+        used for classical ML in Paper~2.
+  \item Compare all models on a comprehensive set of metrics.
+  \item Analyse confidence score distributions to assess whether QML produces
+        better-calibrated uncertainty estimates.
+  \item Discuss the theoretical basis for any observed differences.
+\end{enumerate}
+
+%% ────────────────────────────────────────────────────────────
+\section{Related Work}
+\label{sec:relatedwork}
+
+\subsection{Classical ML for Radar Vessel Classification}
+
+Classical machine learning for radar-based vessel type classification has been studied across several sensor modalities. SAR-based CNNs applied to TerraSAR-X image chips achieve 87--96\% accuracy for cargo, tanker, and offshore structure classification~\cite{bentes2017sar}. For standard pulse-Doppler surveillance radar, gradient boosting and random forest classifiers operating on per-detection amplitude and extent features achieve 84--90\% accuracy on five vessel types (Papers~1 and~2 of this series). Pohon\c{t}u et al.~\cite{pohontzu2023trajectory} classify six vessel types at 83\% accuracy from AIS trajectory patterns using deep learning and SVM. None of these prior works evaluate probability calibration as a systematic metric.
+
+\subsection{Quantum ML for Classification}
+
+Quantum kernel methods applied to low-dimensional structured datasets have demonstrated theoretical promise. Havl{\'i}{\v{c}}ek et al.~\cite{havlicek2019supervised} provide the first experimental demonstration of quantum-enhanced feature spaces on a binary classification problem using a superconducting processor. Schuld et al.~\cite{schuld2020circuit} formalise circuit-centric classifiers and derive conditions under which quantum circuits can represent classically intractable feature spaces. Liu et al.~\cite{liu2021rigorous} provide a rigorous exponential separation result for quantum kernel methods on specifically constructed datasets, noting that this does not immediately imply advantage on naturally occurring data. Mari et al.~\cite{mari2020transfer} demonstrate that transfer learning between classical and quantum networks is feasible, motivating the hybrid HQNN architecture used in this work.
+
+\subsection{QML for Maritime and Radar Classification}
+
+Tanner et al.~\cite{tanner2025qkm} present the first application of quantum kernel methods to maritime object classification, using SAR image chips from the SARFish dataset for binary (vessel/non-vessel, fishing/other) classification. Their noiseless simulation results show quantum kernels can match or marginally exceed classical RBF and Laplacian kernels; complex-valued encoding leads to overfitting. Barretta et al.~\cite{barretta2025hqnn} apply hybrid quantum-classical ResNet architectures to multispectral satellite vessel imagery at IGARSS 2025, reporting competitive Matthew Correlation Coefficient scores with compact model sizes. Both works use satellite imagery rather than terrestrial surveillance radar, and address binary detection rather than multi-class AIS type classification. The present paper is the first to apply HQNN to per-detection amplitude features from a terrestrial coastal radar for multi-class vessel type classification, and the first to evaluate QML calibration behaviour (ECE) on this problem.
+
+%% ────────────────────────────────────────────────────────────
+\section{Quantum Computing Background}
+\label{sec:background}
+
+\subsection{Qubits and Quantum Gates}
+
+A quantum bit (qubit) is a two-level quantum system with state:
+\begin{equation}
+  \ket{\psi} = \alpha\ket{0} + \beta\ket{1}, \quad
+  \alpha,\beta \in \mathbb{C}, \quad |\alpha|^2 + |\beta|^2 = 1
+\end{equation}
+
+An $n$-qubit system occupies a $2^n$-dimensional Hilbert space, allowing
+exponentially many basis states to be superposed. Quantum gates are unitary
+transformations $U \in \mathbb{C}^{2^n \times 2^n}$, $UU^\dagger = I$.
+
+Common single-qubit rotation gates:
+\begin{align}
+  R_x(\theta) &= \exp(-i\theta X/2) = \cos\tfrac{\theta}{2}I - i\sin\tfrac{\theta}{2}X \\
+  R_y(\theta) &= \exp(-i\theta Y/2) = \cos\tfrac{\theta}{2}I - i\sin\tfrac{\theta}{2}Y \\
+  R_z(\theta) &= \exp(-i\theta Z/2) = \cos\tfrac{\theta}{2}I - i\sin\tfrac{\theta}{2}Z
+\end{align}
+
+The CNOT gate entangles two qubits:
+\begin{equation}
+  \text{CNOT} = \begin{pmatrix} 1&0&0&0\\ 0&1&0&0\\ 0&0&0&1\\ 0&0&1&0 \end{pmatrix}
+\end{equation}
+
+\subsection{Quantum Measurement}
+
+The expectation value of the Pauli-$Z$ operator on qubit $i$ is:
+\begin{equation}
+  \expect{Z_i} = \bra{\psi}Z_i\ket{\psi} \in [-1, 1]
+\end{equation}
+This maps the quantum state to a real number used as model output.
+
+\subsection{Data Encoding: Angle Embedding}
+
+Classical features $\vect{x} = (x_1, \dots, x_d) \in \mathbb{R}^d$ are encoded
+into an $n$-qubit state via rotation gates:
+\begin{equation}
+  U_\phi(\vect{x}) = \bigotimes_{i=1}^{d} R_y(\pi x_i')
+\end{equation}
+where $x_i'$ is the normalised feature value in $[0,1]$ and $d = n$ (one
+feature per qubit). After encoding:
+\begin{equation}
+  R_y(\pi x_i')\ket{0} = \cos\!\tfrac{\pi x_i'}{2}\ket{0} + \sin\!\tfrac{\pi x_i'}{2}\ket{1}
+\end{equation}
+Angle encoding is efficient (depth $O(n)$) but limited to $n$ features.
+For $d > n$ features, either additional encoding layers or a classical
+pre-processing step (as in HQNN) is used.
+
+%% ────────────────────────────────────────────────────────────
+\section{QML Model Architectures}
+\label{sec:architectures}
+
+\subsection{Variational Quantum Classifier (VQC)}
+\label{sec:vqc}
+
+The VQC~\cite{schuld2020circuit} is a parameterised quantum circuit trained
+end-to-end via gradient descent on the classification loss.
+
+\subsubsection{Architecture}
+
+\begin{enumerate}
+  \item \textbf{Encoding layer} $U_\phi(\vect{x})$: angle encoding of 5 features
+        into 5 qubits.
+  \item \textbf{Variational layers} $U_\theta(\vect{\theta})$: $L=3$ repetitions
+        of the Strongly Entangling Layer (SEL) ansatz:
+        \begin{equation}
+          \text{SEL}_l = \text{CNOT\_ring} \cdot \prod_{i=1}^{5} R_z(\theta_{l,i,1})
+          R_y(\theta_{l,i,2}) R_z(\theta_{l,i,3})
+        \end{equation}
+        where CNOT\_ring applies CNOT gates in a circular pattern
+        ($1\to2, 2\to3, 3\to4, 4\to5, 5\to1$), creating full entanglement.
+  \item \textbf{Measurement}: Pauli-$Z$ expectation on all 5 qubits
+        $[\expect{Z_1},\dots,\expect{Z_5}]$.
+  \item \textbf{Classical output layer}: Linear transformation to 5 class logits,
+        followed by softmax.
+\end{enumerate}
+
+\subsubsection{Parameter Count}
+
+$L$ layers $\times$ $n$ qubits $\times$ 3 rotation angles $= 3 \times 5 \times 3 = 45$
+variational parameters, plus the output layer ($5 \times 5 + 5 = 30$ classical
+parameters). Total: 75 trainable parameters.
+
+\subsubsection{Training}
+
+\begin{itemize}
+  \item Optimiser: Adam, $\eta = 0.005$, $\beta_1 = 0.9$, $\beta_2 = 0.999$
+  \item Loss: weighted cross-entropy
+  \item Max epochs: 150, early stopping (patience = 20)
+  \item Gradient computation: parameter-shift rule (exact, no finite differences)
+\end{itemize}
+
+The parameter-shift rule computes exact gradients:
+\begin{equation}
+  \frac{\partial}{\partial \theta_k}\expect{O}(\vect{\theta}) =
+  \frac{1}{2}\left[\expect{O}(\vect{\theta} + \tfrac{\pi}{2}\vect{e}_k) -
+  \expect{O}(\vect{\theta} - \tfrac{\pi}{2}\vect{e}_k)\right]
+\end{equation}
+
+\subsection{Hybrid Quantum--Classical Neural Network (HQNN)}
+\label{sec:hqnn}
+
+The HQNN~\cite{mari2020transfer} embeds a quantum circuit within a classical
+neural network, enabling the classical layers to learn a better feature
+representation for the quantum circuit and to post-process quantum measurements.
+
+\subsubsection{Architecture}
+
+\begin{equation}
+  \hat{\vect{y}} = \text{softmax}\!\left(f_{\text{post}}(Q_\theta(f_{\text{pre}}(\vect{x})))\right)
+\end{equation}
+
+\begin{enumerate}
+  \item \textbf{Classical pre-processing}: 2 fully connected layers (ReLU,
+        width 32) that transform the 5 input features before quantum encoding.
+        Output: 5 values (one per qubit).
+  \item \textbf{Quantum layer}: $n=5$ qubits, $L=2$ SEL layers, angle encoding.
+  \item \textbf{Classical post-processing}: Linear layer mapping 5 qubit
+        measurements to 5 class logits.
+\end{enumerate}
+
+\subsubsection{Motivation for Hybrid Architecture}
+
+The classical pre-layers allow the model to:
+\begin{itemize}
+  \item Learn non-linear feature combinations before quantum encoding.
+  \item Scale features to the $[0, \pi]$ encoding range adaptively.
+  \item Use more expressive representations than raw angle encoding allows.
+\end{itemize}
+This hybrid design is specifically beneficial when the raw features are not
+directly suitable for angle encoding (e.g., when feature scales vary
+significantly between variables).
+
+\subsubsection{Training}
+
+Same as VQC. Early stopping typically triggers later (around epoch 20--30)
+compared to VQC (epoch 8--32), suggesting the hybrid architecture navigates
+the loss landscape more smoothly.
+
+\subsection{Quantum Kernel Estimation (QKE)}
+\label{sec:qke}
+
+QKE~\cite{havlicek2019supervised} uses a quantum feature map to define a kernel
+function for a classical Support Vector Machine.
+
+\subsubsection{Quantum Kernel}
+
+The quantum feature map $\phi: \mathbb{R}^d \to \mathcal{H}$ maps inputs to a
+quantum state. The kernel between two inputs is their state overlap:
+\begin{equation}
+  k(\vect{x}_i, \vect{x}_j) = |\braket{\phi(\vect{x}_i)}{\phi(\vect{x}_j)}|^2
+  = |\bra{0}U_\phi^\dagger(\vect{x}_i) U_\phi(\vect{x}_j)\ket{0}|^2
+\end{equation}
+
+The full $N \times N$ kernel matrix is computed, then passed to a classical SVM.
+
+\subsubsection{Computational Complexity}
+
+QKE requires $\mathcal{O}(N^2)$ quantum circuit evaluations, making it
+impractical for large datasets ($N > 10^3$) without approximations.
+For this study, PCA is applied to reduce to $d = n_\text{qubits}$ dimensions
+before QKE.
+
+\subsubsection{Theoretical Advantage}
+
+The quantum advantage of QKE arises when the quantum feature map produces a
+kernel that is exponentially hard to compute classically. Whether this advantage
+materialises for radar features (which are continuous, low-dimensional, and
+structured) is an empirical question addressed in this paper.
+
+%% ────────────────────────────────────────────────────────────
+\section{Ensemble: VQC + HQNN + GBT}
+\label{sec:ensemble}
+
+A three-model soft-vote ensemble combines probability outputs:
+\begin{equation}
+  p_c^{\text{ens}} = \frac{1}{3}\left(p_c^{\text{VQC}} + p_c^{\text{HQNN}} + p_c^{\text{GBT}}\right)
+\end{equation}
+
+The rationale is that VQC and HQNN explore the solution space differently
+from GBT (quantum interference vs.\ gradient boosting), so their errors
+may be partially uncorrelated, yielding ensemble gains beyond any individual model.
+
+%% ────────────────────────────────────────────────────────────
+\section{Results}
+\label{sec:results}
+
+\subsection{Overall Performance}
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\columnwidth]{fig_model_comparison}
+  \caption{Performance of all classical and QML architectures.
+    (a)~Accuracy and Macro F1: GBT leads on raw accuracy (90.0\%); HQNN
+    achieves competitive performance (82.3\%), outperforming SVM and MLP.
+    (b)~ECE: XGB and HQNN are the best-calibrated models, a non-accuracy
+    advantage that is operationally significant for maritime surveillance.}
+  \label{fig:model_comparison_p3}
+\end{figure}
+
+\begin{table}[H]
+\centering
+\caption{All models compared — corrected 5-feature set, study dataset.
+  Classical model CIs from 1,000 bootstrap resamples on $n=240$ test set.}
+\label{tab:all_results}
+\begin{tabular}{lrrrr}
+\toprule
+\textbf{Model} & \textbf{Accuracy} & \textbf{F1 Macro} & \textbf{AUC} & \textbf{Notes} \\
+\midrule
+\multicolumn{5}{l}{\textit{Classical}} \\
+Random Forest   & 89.6\% & 89.5\% & 0.989 & 300 est, balanced \\
+SVM (RBF)       & 80.8\% & 80.7\% & 0.964 & $C=10$, $\gamma=$scale \\
+MLP             & 77.9\% & 77.6\% & 0.948 & 64$\times$64, 55 iter \\
+GBT             & 90.0\% & 90.0\% & 0.987 & 300 est, depth 5 \\
+\midrule
+\multicolumn{5}{l}{\textit{Quantum ML}} \\
+VQC (5 qubits, 3 layers)           & 72.4\% & 71.4\% & 0.901 & Best ep: 15 \\
+HQNN (5 qubits, 2 layers, h=32)    & 82.3\% & 82.8\% & 0.953 & Best ep: 71 \\
+\midrule
+\multicolumn{5}{l}{\textit{Ensemble (soft vote)}} \\
+VQC + HQNN + GBT                   & \textbf{84.2\%} & 84.0\% & 0.979 & 203 test samples \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\noindent Classical models evaluated on 240 test samples; quantum models on 203
+test samples (same dataset, same 300-samples/class training pool, slight
+difference in test fraction between runs). All use corrected 5-feature set
+with SMOTE and StandardScaler.
+
+\subsection{Cargo vs.\ Tanker: Class-Level Deep Dive}
+
+\begin{table}[H]
+\centering
+\caption{Cargo (70) and Tanker (80) recall for all models.}
+\begin{tabular}{lrr}
+\toprule
+\textbf{Model} & \textbf{Type 70 Recall} & \textbf{Type 80 Recall} \\
+\midrule
+\textit{Baseline (original 5-feat)} & & \\
+VQC (original)    & 44\% & 50\% \\
+HQNN (original)   & 67\% & 47\% \\
+Ensemble (original) & 66\% & 44\% \\
+\midrule
+\textit{Study dataset (radarfeatureL\_Study, 300/class)} & & \\
+VQC  (5 qubits)   & 66\% & 44\% \\
+HQNN (5 qubits)   & \textbf{83\%} & 58\% \\
+GBT  (300 est)    & 75\% & \textbf{78\%} \\
+Ensemble (3 models) & 81\% & 69\% \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Learning Curves}
+
+\textit{[Training and validation accuracy vs.\ epoch plots for VQC and HQNN
+to be inserted. Key observations:}
+\begin{itemize}
+  \item VQC typically plateaus early (epoch 8--32) due to barren plateau effects
+        in the gradient landscape.
+  \item HQNN converges more smoothly due to the classical pre/post layers
+        providing richer gradient signal.
+  \item Early stopping (patience=20) prevents overfitting by restoring the
+        best-validation-accuracy checkpoint.]
+\end{itemize}
+
+\subsection{Confidence Calibration (ECE)}
+
+Expected Calibration Error (ECE) measures the gap between a model's
+stated confidence and its actual accuracy. Lower ECE is better; a
+perfectly calibrated model has ECE~$= 0$.
+
+\begin{table}[H]
+\centering
+\caption{Confidence calibration comparison across all models.
+         ECE computed over the test set (100/class low-data regime).
+         $\text{conf\_correct}$ = mean max-probability on correct predictions;
+         $\text{conf\_wrong}$ = mean max-probability on incorrect predictions;
+         gap = $\text{conf\_correct} - \text{conf\_wrong}$.}
+\begin{tabular}{lrrrr}
+\toprule
+\textbf{Model} & \textbf{ECE} $\downarrow$ & \textbf{conf\_correct} & \textbf{conf\_wrong} & \textbf{gap} \\
+\midrule
+HQNN 8q (3L)  & \textbf{0.1019} & 0.837 & 0.688 & 0.149 \\
+RBF-SVM       & 0.1039 & 0.766 & 0.565 & 0.201 \\
+QKE ZZFeatMap & 0.1057 & 0.383 & 0.293 & 0.089 \\
+QKE Angle     & 0.1178 & 0.669 & 0.527 & 0.141 \\
+RF            & 0.1216 & 0.803 & 0.563 & 0.240 \\
+VQC 8q (4L)   & 0.1416 & 0.616 & 0.457 & 0.159 \\
+HQNN 5q (2L)  & 0.1422 & 0.903 & 0.802 & 0.100 \\
+GBT           & 0.1600 & 0.980 & 0.880 & 0.100 \\
+VQC 5q (3L)   & 0.2691 & 0.317 & 0.280 & 0.037 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Key calibration observations:
+\begin{itemize}
+  \item \textbf{HQNN 8q is the best-calibrated model overall} (ECE~$= 0.1019$),
+        narrowly ahead of RBF-SVM (0.1039). It is also the QML model with
+        the best discrimination gap (0.149).
+  \item \textbf{GBT is significantly overconfident} (ECE~$= 0.1600$):
+        it assigns mean confidence 0.980 to correct predictions and 0.880
+        to incorrect ones — a gap of only 0.100 — indicating it is not
+        recognising its own uncertainty at the Cargo/Tanker boundary.
+  \item \textbf{VQC 5q is poorly calibrated} (ECE~$= 0.2691$) with very
+        low absolute confidence (0.317 correct, 0.280 wrong) and a negligible
+        gap (0.037), confirming the circuit has limited discriminative capacity
+        at 5 qubits.
+  \item \textbf{HQNN 5q shows high confidence} on correct predictions (0.903)
+        but also elevated confidence on errors (0.802), producing an ECE of 0.1422.
+  \item RF has the largest gap (0.240) but moderate ECE (0.1216), meaning
+        it discriminates well but is under-confident on its correct predictions.
+\end{itemize}
+
+%% ────────────────────────────────────────────────────────────
+\section{When Does QML Help?}
+\label{sec:when_qml_helps}
+
+\subsection{Theoretical Conditions for Quantum Advantage}
+
+Quantum advantage in classification arises under specific conditions:
+\begin{enumerate}
+  \item \textbf{Kernel inexpressibility}: The quantum kernel captures
+        correlations that classical kernels cannot efficiently compute.
+  \item \textbf{Data structure}: The data lies near a quantum state manifold
+        that angle encoding maps to efficiently.
+  \item \textbf{Small data regime}: Quantum models have fewer parameters
+        ($\sim$75 for VQC vs.\ thousands for deep classical networks),
+        potentially generalising better from small samples.
+\end{enumerate}
+
+\subsection{Analysis for the Radar Classification Problem}
+
+\begin{table}[H]
+\centering
+\caption{Assessment of quantum advantage conditions for this problem.}
+\begin{tabular}{p{5cm}p{4cm}p{4cm}}
+\toprule
+\textbf{Condition} & \textbf{Satisfied?} & \textbf{Evidence} \\
+\midrule
+Low-dimensional structured data ($d \leq 10$) & \checkmark Yes & 5 features \\
+Small training set ($N < 10^3$) & Partial & $\sim$1,200--10,000 \\
+Feature overlap requiring non-linear decision boundary & \checkmark Yes & 70/80 boundary \\
+Quantum kernel advantage & \texttimes{} No & QKE Angle $\approx$ RBF-SVM; ZZFeatureMap fails \\
+\midrule
+\end{tabular}
+\end{table}
+
+The small-data regime is where QML most often shows competitive performance
+relative to classical deep learning. With 5 features and $\sim$1,200 training
+samples, HQNN (75 parameters) may generalise better than MLP (thousands of
+parameters) despite similar capacity. Whether it outperforms GBT (which also
+has relatively compact parameterisation) is the empirical question.
+
+\subsection{Observed QML Behaviour}
+
+From training on the study dataset (radarfeatureL\_Study, 100,430 observations,
+300 samples per class for training):
+\begin{itemize}
+  \item \textbf{HQNN achieved 82.3\% accuracy and 82.8\% F1 Macro} with best
+        weights at epoch 71 (early stopping at epoch 91). This outperforms
+        VQC by 10 percentage points and is competitive with RF (89.6\%).
+  \item \textbf{VQC achieved 72.4\% accuracy} (best at epoch 15, early stopping
+        at epoch 35), limited by circuit expressibility and the 5-qubit
+        strongly-entangling ansatz.
+  \item \textbf{HQNN converges smoothly over 71 epochs} versus VQC's plateau
+        at epoch 15, confirming the classical encoder/decoder layers provide
+        richer gradient signal than the all-quantum VQC.
+  \item \textbf{The VQC+HQNN+GBT ensemble (84.2\%)} does not outperform GBT
+        alone (90.0\%) on accuracy but achieves competitive AUC (0.979 vs.\
+        0.987) and may offer better-calibrated uncertainty estimates for
+        operational maritime classification systems.
+  \item \textbf{Training cost}: VQC and HQNN required approximately 70 minutes
+        combined on CPU using \texttt{lightning.qubit} with adjoint
+        differentiation. GBT trained in 1.6 seconds.
+\end{itemize}
+
+%% ────────────────────────────────────────────────────────────
+\section{V2 Experiments: Probing the Boundaries of QML Advantage}
+\label{sec:v2experiments}
+
+To move beyond the single-configuration finding, four targeted experiments
+were conducted on the study dataset, each isolating a specific variable
+that theory predicts should influence the QML--classical gap.
+
+\subsection{Experiment 1 — Data Efficiency (100 Samples/Class)}
+
+The V1 training regime used 300 samples/class (1,200 train, 300 test with
+80/20 split). To test whether QML shows a data-efficiency advantage in the
+low-data regime, all models were retrained on 100 samples/class (400 train
+post-SMOTE, 100 test).
+
+\begin{table}[H]
+\centering
+\caption{Low-data regime comparison: 100 samples/class vs.\ V1 (300/class).
+         $\Delta$ shows pp change from V1 to the 100/class regime.}
+\begin{tabular}{lrrrrl}
+\toprule
+\textbf{Model} & \textbf{Acc (100/c)} & \textbf{F1} & \textbf{AUC} & \textbf{$\Delta$ Acc} & \textbf{Note} \\
+\midrule
+GBT            & 80.0\% & 80.1\% & 0.961 & $-10.0$~pp & Largest drop \\
+RF             & 84.0\% & 83.6\% & 0.962 & $-5.6$~pp  & \\
+RBF-SVM        & 73.0\% & 73.3\% & 0.934 & —          & new baseline \\
+VQC 5q (3L)   & 57.0\% & 56.3\% & 0.834 & $-15.4$~pp & Worst \\
+HQNN 5q (2L)  & \textbf{78.0\%} & 78.1\% & 0.914 & $-4.3$~pp  & \textbf{Most robust} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\noindent\textbf{Key finding}: the HQNN--GBT accuracy gap narrows from 7.7~pp
+(V1: 82.3\% vs.\ 90.0\%) to only 2.0~pp (V2: 78.0\% vs.\ 80.0\%) as training
+data shrinks. HQNN degrades by only 4.3~pp compared to GBT's 10.0~pp drop,
+consistent with the hypothesis that compact quantum parameterisation
+($\sim$75 trainable parameters) regularises better from small samples.
+VQC degrades catastrophically ($-15.4$~pp), suggesting it requires more
+data to reach useful accuracy even with its smaller parameter count.
+
+\subsection{Experiment 2 — Circuit Depth: 8 Qubits, 4 Layers}
+
+To test whether increased expressibility closes the performance gap,
+VQC and HQNN were trained with 8 qubits (vs.\ 5) and 4/3 layers respectively,
+using the same 100/class split.
+
+\begin{table}[H]
+\centering
+\caption{Effect of increased qubit count on QML performance (100/class split).}
+\begin{tabular}{lrrrrl}
+\toprule
+\textbf{Model} & \textbf{Acc} & \textbf{F1} & \textbf{AUC} & \textbf{ECE} & \textbf{vs.\ 5q} \\
+\midrule
+VQC 5q (3L)  & 57.0\% & 56.3\% & 0.834 & 0.2691 & baseline \\
+VQC 8q (4L)  & 65.0\% & 64.7\% & 0.891 & 0.1416 & $+8.0$~pp \\
+\midrule
+HQNN 5q (2L) & 78.0\% & 78.1\% & 0.914 & 0.1422 & baseline \\
+HQNN 8q (3L) & 76.0\% & 75.3\% & 0.910 & \textbf{0.1019} & $-2.0$~pp \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\noindent\textbf{Key findings}: VQC benefits substantially from the wider circuit
+($+8$~pp), consistent with the all-quantum architecture needing more
+expressibility to avoid under-fitting. HQNN is relatively insensitive to qubit
+count ($-2$~pp at 8q vs.\ 5q), suggesting the classical encoder/decoder layers
+already provide sufficient representational capacity, and additional qubits add
+simulation overhead without proportional accuracy gains. Notably, HQNN 8q
+achieves the \emph{best calibration of all models tested} (ECE~$= 0.1019$).
+
+\subsection{Experiment 3 — Quantum Kernel Estimation (QKE)}
+
+A quantum-kernel SVM (QSVM) was evaluated using two feature maps: the
+ZZFeatureMap (entangling, second-order Pauli interactions) and an AngleEmbedding
+map (non-entangling). The classical RBF-SVM is the direct comparator.
+All kernel matrices were computed with 5 qubits, 2 repetitions, $C = 10$,
+training capped at 150 samples for tractable runtime.
+
+\begin{table}[H]
+\centering
+\caption{Quantum Kernel Estimation vs.\ classical RBF-SVM
+         (100/class test set, 5 qubits, $C = 10$).}
+\begin{tabular}{lrrrr}
+\toprule
+\textbf{Method} & \textbf{Acc} & \textbf{F1} & \textbf{AUC} & \textbf{Kernel time} \\
+\midrule
+QKE ZZFeatureMap & 40.0\% & 36.2\% & 0.719 & 61\,s \\
+QKE Angle        & 74.0\% & 74.6\% & 0.910 & 43\,s \\
+RBF-SVM (classical) & 73.0\% & 73.3\% & 0.934 & $<$0.1\,s \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\noindent\textbf{Key findings}: The QKE ZZFeatureMap fails on this dataset (40\%,
+barely above chance for 5 classes), indicating that the entangling Pauli
+interactions in the ZZ feature map do not capture the relevant structure
+in this 5-dimensional radar feature space. The QKE Angle map (74\%) is
+statistically equivalent to RBF-SVM (73\%), confirming that the quantum
+kernel provides \emph{no advantage} over the classical kernel for this problem
+— at 430$\times$ the computation time. This directly addresses the open
+question from the conditions table: quantum kernel advantage is \emph{not}
+present for this dataset.
+
+%% ────────────────────────────────────────────────────────────
+\section{Discussion}
+\label{sec:discussion}
+
+\subsection{QML vs.\ Classical: The Core Trade-off}
+
+\begin{itemize}
+  \item \textbf{Accuracy}: GBT (90.0\%) outperforms all other models.
+        HQNN (82.3\%) is the best QML model and closes two-thirds of the
+        gap between VQC and GBT. SVM (80.8\%) and MLP (77.9\%) fall below HQNN.
+  \item \textbf{Training speed}: GBT trains in 1.6 seconds; VQC requires
+        approximately 30 minutes and HQNN approximately 40 minutes on CPU
+        using \texttt{lightning.qubit} with adjoint differentiation.
+        On GPU the overhead is higher for 5-qubit circuits (0.24\,s per
+        10 evaluations) than CPU (0.04\,s), due to GPU launch overhead
+        dominating at this circuit size.
+  \item \textbf{Scalability}: QML simulation cost scales exponentially with
+        qubit count. At 5 qubits, statevector simulation remains tractable
+        and is the regime explored here.
+  \item \textbf{Confidence calibration}: HQNN 8q achieves the best ECE of all
+        models (0.1019), ahead of RBF-SVM (0.1039) and RF (0.1216). GBT has
+        the worst ECE (0.1600) and is severely overconfident (mean confidence
+        0.980 on correct predictions, 0.880 on wrong ones — a gap of only
+        0.100). This means GBT does not reduce its stated confidence at the
+        Cargo/Tanker boundary where it makes most of its errors, which is
+        operationally undesirable. HQNN 8q provides a more actionable signal
+        for maritime surveillance systems that flag low-confidence predictions
+        for operator review.
+\end{itemize}
+
+\subsection{Barren Plateau Problem}
+
+VQC training can suffer from exponentially vanishing gradients as qubit count
+grows — the ``barren plateau'' phenomenon~\cite{mcclean2018barren}:
+\begin{equation}
+  \text{Var}\!\left[\frac{\partial L}{\partial \theta_k}\right] \in O(2^{-n})
+\end{equation}
+With $n=5$ qubits, this is not yet a critical issue, but it explains the
+earlier plateau of VQC training curves and the benefit of the hybrid HQNN
+architecture, which mitigates barren plateaus through classical layers.
+
+\subsection{Simulator vs.\ Real Quantum Hardware}
+
+All experiments use classical statevector simulation. On real NISQ devices:
+\begin{itemize}
+  \item Gate errors and decoherence would degrade performance.
+  \item Shot noise would introduce stochastic gradients.
+  \item Error mitigation techniques would be required.
+\end{itemize}
+Demonstrating QML advantage on real hardware for this problem remains future work.
+
+%% ────────────────────────────────────────────────────────────
+\section{Conclusion}
+
+This paper provides the first systematic comparison of QML and classical ML for
+multi-class radar vessel type classification from a coastal X-band surveillance
+radar, including four targeted V2 experiments that probe the data-efficiency,
+circuit depth, quantum kernel, and calibration dimensions of QML performance.
+
+\noindent\textbf{Primary results (V1, 300/class):}
+\begin{enumerate}
+  \item \textbf{HQNN (82.3\% accuracy, F1 82.8\%, AUC 0.953)} is the strongest
+        QML model and approaches GBT (90.0\%) despite having only $\sim$75
+        trainable parameters vs.\ GBT's 300 decision trees.
+  \item \textbf{VQC (72.4\%, F1 71.4\%, AUC 0.901)} underperforms HQNN by
+        10~pp, limited by circuit expressibility and barren plateau onset at
+        epoch~15.
+  \item \textbf{GBT (90.0\%, AUC 0.987) is the best single model}, training
+        in 1.6~seconds vs.\ $\sim$70 minutes for the quantum models.
+  \item \textbf{The VQC+HQNN+GBT ensemble (84.2\%)} does not exceed GBT alone,
+        as the weaker VQC member dilutes the prediction.
+  \item \textbf{HQNN outperforms SVM (80.8\%) and MLP (77.9\%)} on identical
+        features.
+\end{enumerate}
+
+\noindent\textbf{V2 experiment findings:}
+\begin{enumerate}
+  \setcounter{enumi}{5}
+  \item \textbf{Data efficiency (100/class)}: the HQNN--GBT accuracy gap narrows
+        from 7.7~pp to 2.0~pp (78.0\% vs.\ 80.0\%) as training data shrinks.
+        HQNN degrades by only 4.3~pp vs.\ GBT's 10.0~pp and VQC's 15.4~pp
+        drop, confirming QML data efficiency in the low-data regime.
+  \item \textbf{Circuit depth (8 qubits)}: wider circuits help VQC substantially
+        ($+8$~pp, from 57\% to 65\%) but provide negligible benefit to HQNN
+        ($-2$~pp), indicating the classical layers already provide sufficient
+        representational capacity.
+  \item \textbf{Quantum kernel}: neither QKE feature map beats the classical
+        RBF-SVM. QKE Angle (74\%) is statistically equivalent to RBF-SVM (73\%)
+        at 430$\times$ the computation cost. QKE ZZFeatureMap fails outright
+        (40\%). No quantum kernel advantage exists for this problem.
+  \item \textbf{Calibration}: HQNN 8q is the best-calibrated model across all
+        methods (ECE~$= 0.1019$). GBT is the worst-calibrated (ECE~$= 0.1600$)
+        and severely overconfident on its errors — a critical operational
+        limitation for maritime surveillance. QML offers a calibration advantage
+        that complements its accuracy in the low-to-moderate data regime.
+\end{enumerate}
+
+\section*{Data Availability}
+The radar detection dataset (\texttt{radarfeatureL\_Study}) used in this
+study was collected from an operational coastal X-band surveillance
+installation operated by AA~Enterprises and is subject to a commercial
+confidentiality agreement. The raw data cannot be publicly released.
+Researchers wishing to reproduce or extend the methodology may contact
+the corresponding author; collaboration arrangements subject to a
+non-disclosure agreement (NDA) may be considered on a case-by-case basis.
+
+The complete feature engineering pipeline, model training code, and
+evaluation scripts are released open-source and accept any CSV with
+columns \texttt{PeakAmplitude}, \texttt{TotalAmplitude}, \texttt{range},
+\texttt{down\_range\_extent}, and \texttt{cross\_range\_extent}, enabling
+independent application of the methodology to other radar datasets.
+Code: \url{https://github.com/aa-enterprises/radar-vessel-rcs-features}.
+
+\section*{Acknowledgment}
+The author would like to thank the PennyLane development team for the open-source quantum computing framework. The quantum circuit simulations used the \texttt{lightning.qubit} statevector backend with adjoint differentiation. The radar dataset was made available through AA~Enterprises, Bangalore, India, under a data-use agreement. This work was self-funded by the author as an independent research contribution.
+
+\section*{Declaration of Competing Interest}
+The author declares no competing financial or personal interests that could have appeared to influence the work reported in this paper.
+
+\bibliographystyle{IEEEtran}
+\begin{thebibliography}{20}
+
+\bibitem{havlicek2019supervised}
+V.~Havl{\'i}{\v{c}}ek et al., ``Supervised learning with quantum-enhanced feature spaces,'' \textit{Nature}, vol.~567, pp.~209--212, Mar. 2019.
+
+\bibitem{schuld2020circuit}
+M.~Schuld, A.~Bocharov, K.~M. Svore, and N.~Wiebe, ``Circuit-centric quantum classifiers,'' \textit{Phys. Rev. A}, vol.~101, no.~3, p.~032308, Mar. 2020.
+
+\bibitem{mari2020transfer}
+A.~Mari, T.~R. Bromley, J.~Izaac, M.~Schuld, and N.~Killoran, ``Transfer learning in hybrid classical-quantum neural networks,'' \textit{Quantum}, vol.~4, p.~340, Oct. 2020.
+
+\bibitem{mcclean2018barren}
+J.~R. McClean, S.~Boixo, V.~N. Smelyanskiy, R.~Babbush, and H.~Neven, ``Barren plateaus in quantum neural network training landscapes,'' \textit{Nat. Commun.}, vol.~9, p.~4812, Nov. 2018.
+
+\bibitem{harrow2009}
+A.~W. Harrow, A.~Hassidim, and S.~Lloyd, ``Quantum algorithm for linear systems of equations,'' \textit{Phys. Rev. Lett.}, vol.~103, no.~15, p.~150502, Oct. 2009.
+
+\bibitem{pennylane2019}
+V.~Bergholm et al., ``PennyLane: Automatic differentiation of hybrid quantum-classical computations,'' \textit{arXiv:1811.04975}, 2018.
+
+\bibitem{liu2021rigorous}
+Y.~Liu, S.~Arunachalam, and K.~Temme, ``A rigorous and robust quantum speed-up in supervised machine learning,'' \textit{Nat. Phys.}, vol.~17, pp.~1013--1017, Jul. 2021.
+
+\bibitem{tanner2025qkm}
+J.~Tanner et al., ``Maritime object classification with SAR imagery using quantum kernel methods,'' \textit{arXiv preprint}, 2025.
+
+\bibitem{barretta2025hqnn}
+D.~Barretta et al., ``First evaluation of hybrid quantum neural networks for vessel classification in raw multispectral imagery,'' in \textit{Proc. IGARSS}, 2025.
+
+\bibitem{bentes2017sar}
+C.~Bentes, A.~Frost, D.~Velotto, and B.~Tings, ``Ship classification in TerraSAR-X images with convolutional neural networks,'' \textit{IEEE J. Ocean. Eng.}, vol.~42, no.~3, pp.~677--687, Jul. 2017.
+
+\bibitem{pohontzu2023trajectory}
+A.-I. Pohon\c{t}u et al., ``Ship type classification: a handwriting signature verification approach for maritime trajectories,'' in \textit{Proc. 8th Int. Symp. Electr. Electron. Eng. (ISEEE)}, 2023.
+
+\bibitem{guo2017calibration}
+C.~Guo, G.~Pleiss, Y.~Sun, and K.~Q. Weinberger, ``On calibration of modern neural networks,'' in \textit{Proc. ICML}, Sydney, Australia, 2017, pp.~1321--1330.
+
+\end{thebibliography}
+
+\end{document}

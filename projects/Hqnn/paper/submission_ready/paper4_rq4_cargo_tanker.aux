@@ -1,0 +1,69 @@
+\relax 
+\providecommand\hyper@newdestlabel[2]{}
+\providecommand\HyField@AuxAddToFields[1]{}
+\providecommand\HyField@AuxAddToCoFields[2]{}
+\citation{bentes2017sar}
+\citation{awais2025survey}
+\citation{asikuzzaman2025sar}
+\citation{li2025tfd}
+\citation{stopford2009maritime}
+\citation{zhang2021hog}
+\@writefile{toc}{\contentsline {section}{\numberline {I}Introduction}{1}{section.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {II}Related Work}{1}{section.2}\protected@file@percent }
+\newlabel{sec:relatedwork}{{II}{1}{Related Work}{section.2}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {II-A}}Cargo and Tanker Classification in SAR Imagery}{1}{subsection.2.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {II-B}}Hull Geometry and Vessel Size}{1}{subsection.2.2}\protected@file@percent }
+\citation{zhao2025norm}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {II-C}}Feature Normalisation for Radar Generalisation}{2}{subsection.2.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {III}The Cargo vs.\ Tanker Classification Problem}{2}{section.3}\protected@file@percent }
+\newlabel{sec:problem}{{III}{2}{The Cargo vs.\ Tanker Classification Problem}{section.3}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {III-A}}Physical Characteristics}{2}{subsection.3.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {III-B}}AIS Type Codes}{2}{subsection.3.2}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {I}{\ignorespaces AIS type codes for large vessel classes.}}{2}{table.caption.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {IV}The Unit Error in Conventional Size Features}{2}{section.4}\protected@file@percent }
+\newlabel{sec:unit_error}{{IV}{2}{The Unit Error in Conventional Size Features}{section.4}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {IV-A}}Standard Formulations}{2}{subsection.4.1}\protected@file@percent }
+\newlabel{eq:euclid_wrong}{{1}{2}{Standard Formulations}{equation.4.1}{}}
+\newlabel{eq:ellipse_wrong}{{2}{2}{Standard Formulations}{equation.4.2}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {IV-B}}Quantitative Impact}{2}{subsection.4.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {IV-C}}Evidence from Data}{2}{subsection.4.3}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {II}{\ignorespaces Statistical equivalence of \texttt  {euclid\_size} and \texttt  {rgw} across all vessel classes in the study dataset.}}{2}{table.caption.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {V}The Corrected Feature: az\_extent\_m}{2}{section.5}\protected@file@percent }
+\newlabel{sec:az_extent}{{V}{2}{The Corrected Feature: az\_extent\_m}{section.5}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {V-A}}Derivation}{2}{subsection.5.1}\protected@file@percent }
+\newlabel{eq:az_correct}{{6}{2}{Derivation}{equation.5.6}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {1}{\ignorespaces Cargo vs.\ Tanker spatial extent from the \texttt  {radarfeatureL\_Study} dataset. (a)~Cross-range extent distribution: Tanker (median $\approx $\,110~m) is systematically wider than Cargo (median $\approx $\,90~m), but distributions overlap substantially. (b)~Radar footprint scatter by vessel type: the Fishing/Tug cluster clearly separates from Cargo/Tanker; the Cargo/Tanker overlap in the large-footprint region is the fundamental challenge.}}{3}{figure.caption.3}\protected@file@percent }
+\providecommand*\caption@xref[2]{\@setref\relax\@undefined{#1}}
+\newlabel{fig:cargo_tanker_extent}{{1}{3}{Cargo vs.\ Tanker spatial extent from the \texttt {radarfeatureL\_Study} dataset. (a)~Cross-range extent distribution: Tanker (median $\approx $\,110~m) is systematically wider than Cargo (median $\approx $\,90~m), but distributions overlap substantially. (b)~Radar footprint scatter by vessel type: the Fishing/Tug cluster clearly separates from Cargo/Tanker; the Cargo/Tanker overlap in the large-footprint region is the fundamental challenge}{figure.caption.3}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {V-B}}Physical Interpretation}{3}{subsection.5.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {V-C}}Statistical Separability}{3}{subsection.5.3}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {III}{\ignorespaces Cohen's $d$ for Cargo (70) vs.\ Tanker (80): before and after correction.}}{3}{table.caption.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {VI}Impact on Model Performance}{3}{section.6}\protected@file@percent }
+\newlabel{sec:impact}{{VI}{3}{Impact on Model Performance}{section.6}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {VI-A}}Cargo and Tanker Recall Progression}{3}{subsection.6.1}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {IV}{\ignorespaces Progression of Cargo (70) and Tanker (80) recall across feature versions. All ``study dataset'' results use radarfeatureL\_Study.csv (100,430 rows, 300 samples/class for training, 5-feature corrected set).}}{3}{table.caption.5}\protected@file@percent }
+\newlabel{tab:recall_progression}{{IV}{3}{Progression of Cargo (70) and Tanker (80) recall across feature versions. All ``study dataset'' results use radarfeatureL\_Study.csv (100,430 rows, 300 samples/class for training, 5-feature corrected set)}{table.caption.5}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {VI-B}}The Aspect-Angle Residual Confusion}{3}{subsection.6.2}\protected@file@percent }
+\newlabel{sec:aspect_residual}{{\mbox  {VI-B}}{3}{The Aspect-Angle Residual Confusion}{subsection.6.2}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {VI-C}}Strategies to Further Reduce Confusion}{4}{subsection.6.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {VII}Confidence Analysis for the 70/80 Boundary}{4}{section.7}\protected@file@percent }
+\newlabel{sec:confidence}{{VII}{4}{Confidence Analysis for the 70/80 Boundary}{section.7}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {VIII}Discussion}{4}{section.8}\protected@file@percent }
+\newlabel{sec:discussion}{{VIII}{4}{Discussion}{section.8}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {VIII-A}}Can the Cargo/Tanker Boundary Be Resolved?}{4}{subsection.8.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {VIII-B}}Implications for Dataset Construction}{4}{subsection.8.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {IX}Conclusion}{4}{section.9}\protected@file@percent }
+\bibstyle{IEEEtran}
+\bibcite{skolnik2001}{1}
+\bibcite{cohen1988}{2}
+\bibcite{itu2014}{3}
+\bibcite{watts2016}{4}
+\bibcite{bentes2017sar}{5}
+\bibcite{awais2025survey}{6}
+\bibcite{asikuzzaman2025sar}{7}
+\bibcite{li2025tfd}{8}
+\bibcite{zhang2021hog}{9}
+\bibcite{stopford2009maritime}{10}
+\bibcite{zhao2025norm}{11}
+\@writefile{toc}{\contentsline {section}{References}{5}{section*.9}\protected@file@percent }
+\gdef \@abspage@last{5}

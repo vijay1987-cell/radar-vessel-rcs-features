@@ -1,0 +1,25 @@
+{
+  "n_features": 5,
+  "n_classes": 5,
+  "feature_cols": [
+    "azimuth",
+    "PeakAmplitude",
+    "TotalAmplitude",
+    "down_range_extent",
+    "az_extent_m"
+  ],
+  "class_names": [
+    "30",
+    "33",
+    "52",
+    "70",
+    "80"
+  ],
+  "model": "VQC",
+  "n_qubits": 8,
+  "n_layers": 4,
+  "embedding": "angle",
+  "ansatz": "strongly_entangling",
+  "best_epoch": 23,
+  "note": "8q 100/class v2"
+}

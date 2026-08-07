@@ -1,0 +1,27 @@
+{
+  "n_features": 5,
+  "n_classes": 5,
+  "feature_cols": [
+    "azimuth",
+    "PeakAmplitude",
+    "TotalAmplitude",
+    "down_range_extent",
+    "az_extent_m"
+  ],
+  "class_names": [
+    "30",
+    "33",
+    "52",
+    "70",
+    "80"
+  ],
+  "model": "HQNN",
+  "n_qubits": 8,
+  "n_layers": 3,
+  "classical_hidden": 32,
+  "n_classical_layers": 2,
+  "ansatz": "strongly_entangling",
+  "activation": "relu",
+  "best_epoch": 39,
+  "note": "8q 100/class v2"
+}

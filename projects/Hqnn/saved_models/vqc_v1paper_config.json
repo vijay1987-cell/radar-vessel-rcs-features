@@ -1,0 +1,9 @@
+{
+  "model": "VQC",
+  "n_features": 5,
+  "n_qubits": 5,
+  "n_layers": 3,
+  "n_classes": 5,
+  "embedding": "angle",
+  "ansatz": "strongly_entangling"
+}

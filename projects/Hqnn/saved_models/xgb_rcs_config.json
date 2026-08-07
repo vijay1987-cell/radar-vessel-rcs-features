@@ -1,0 +1,25 @@
+{
+  "model": "XGB",
+  "n_features": 5,
+  "n_classes": 4,
+  "feature_cols": [
+    "log_peak_rcs",
+    "log_total_rcs",
+    "rcs_conc",
+    "aspect_ratio",
+    "footprint_m2"
+  ],
+  "class_names": [
+    "30",
+    "52",
+    "70",
+    "80"
+  ],
+  "range_km": [
+    5,
+    50
+  ],
+  "note": "RCS-based physically invariant features, 300/class range-stratified",
+  "accuracy": 0.8483,
+  "f1_macro": 0.8477
+}

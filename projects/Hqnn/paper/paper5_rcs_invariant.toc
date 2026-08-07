@@ -1,0 +1,48 @@
+\contentsline {section}{\numberline {1}Introduction}{3}{section.1}%
+\contentsline {section}{\numberline {2}Background}{4}{section.2}%
+\contentsline {subsection}{\numberline {2.1}Radar Range Equation}{4}{subsection.2.1}%
+\contentsline {subsection}{\numberline {2.2}Previous Vessel Classification Approaches}{4}{subsection.2.2}%
+\contentsline {paragraph}{Kinematic features.}{5}{section*.2}%
+\contentsline {paragraph}{Micro-Doppler.}{5}{section*.3}%
+\contentsline {paragraph}{Spatial features.}{5}{section*.4}%
+\contentsline {paragraph}{Feature normalisation for multi-radar generalisation.}{5}{section*.5}%
+\contentsline {paragraph}{Quantum ML for maritime classification.}{6}{section*.6}%
+\contentsline {subsection}{\numberline {2.3}Quantum-Classical Hybrid Neural Networks}{6}{subsection.2.3}%
+\contentsline {section}{\numberline {3}Range-Invariant Feature Derivation}{6}{section.3}%
+\contentsline {subsection}{\numberline {3.1}From Raw Observables to RCS Features}{6}{subsection.3.1}%
+\contentsline {paragraph}{Feature 1 — Log Peak RCS ($\log \hat {\sigma }_p$):}{7}{section*.7}%
+\contentsline {paragraph}{Feature 2 — Log Total RCS ($\log \hat {\sigma }_t$):}{7}{section*.8}%
+\contentsline {paragraph}{Feature 3 — RCS Concentration Ratio ($\rho $):}{7}{section*.9}%
+\contentsline {paragraph}{Feature 4 — Physical Aspect Ratio ($\xi $):}{7}{section*.10}%
+\contentsline {paragraph}{Feature 5 — Log Footprint Area ($\log A$):}{8}{section*.11}%
+\contentsline {subsection}{\numberline {3.2}Comparison with Raw Features}{8}{subsection.3.2}%
+\contentsline {subsection}{\numberline {3.3}The Detection Selection Effect}{8}{subsection.3.3}%
+\contentsline {section}{\numberline {4}Dataset and Experimental Setup}{9}{section.4}%
+\contentsline {subsection}{\numberline {4.1}Source Data}{9}{subsection.4.1}%
+\contentsline {subsection}{\numberline {4.2}Range-Stratified Balanced Sampling}{10}{subsection.4.2}%
+\contentsline {subsection}{\numberline {4.3}Model Architectures}{10}{subsection.4.3}%
+\contentsline {paragraph}{GBT.}{10}{section*.14}%
+\contentsline {paragraph}{XGBoost.}{10}{section*.15}%
+\contentsline {paragraph}{HQNN-5q.}{11}{section*.16}%
+\contentsline {paragraph}{HQNN-8q.}{11}{section*.17}%
+\contentsline {subsection}{\numberline {4.4}Evaluation Metrics}{11}{subsection.4.4}%
+\contentsline {paragraph}{Accuracy and Macro F1.}{11}{section*.18}%
+\contentsline {paragraph}{Size-Group Accuracy.}{11}{section*.19}%
+\contentsline {paragraph}{Expected Calibration Error (ECE).}{11}{section*.20}%
+\contentsline {paragraph}{OOD Confidence.}{11}{section*.21}%
+\contentsline {section}{\numberline {5}Results}{11}{section.5}%
+\contentsline {subsection}{\numberline {5.1}Type-Level Classification Accuracy}{11}{subsection.5.1}%
+\contentsline {paragraph}{Per-class performance (HQNN-8q).}{12}{section*.23}%
+\contentsline {subsection}{\numberline {5.2}Vessel Size-Group Accuracy}{12}{subsection.5.2}%
+\contentsline {subsection}{\numberline {5.3}Calibration}{13}{subsection.5.3}%
+\contentsline {subsection}{\numberline {5.4}Out-of-Distribution Vessel Types}{14}{subsection.5.4}%
+\contentsline {section}{\numberline {6}Discussion}{14}{section.6}%
+\contentsline {subsection}{\numberline {6.1}Physical Interpretation of Feature Importance}{14}{subsection.6.1}%
+\contentsline {subsection}{\numberline {6.2}The Cargo-Tanker Boundary on RCS Features}{15}{subsection.6.2}%
+\contentsline {subsection}{\numberline {6.3}Operational Implications of Calibration Advantage}{16}{subsection.6.3}%
+\contentsline {subsection}{\numberline {6.4}Limitations and Future Work}{16}{subsection.6.4}%
+\contentsline {paragraph}{Single-scan detection.}{16}{section*.26}%
+\contentsline {paragraph}{Fixed radar geometry.}{16}{section*.27}%
+\contentsline {paragraph}{Aspect angle ambiguity.}{16}{section*.28}%
+\contentsline {paragraph}{Sea state and clutter.}{16}{section*.29}%
+\contentsline {section}{\numberline {7}Conclusion}{17}{section.7}%

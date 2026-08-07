@@ -1,0 +1,1021 @@
+%% ============================================================
+%%  Radar Target Classification: Classical ML vs Quantum ML
+%%  A Study on Terrestrial Coastal Radar Data
+%% ============================================================
+\documentclass[12pt, a4paper]{article}
+
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{amsmath, amssymb, amsfonts}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{multirow}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{listings}
+\usepackage{tikz}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
+\usepackage{float}
+\usepackage{enumitem}
+\usepackage[numbers]{natbib}
+\usepackage{setspace}
+\onehalfspacing
+
+\hypersetup{
+    colorlinks=true, linkcolor=blue, citecolor=blue, urlcolor=blue
+}
+
+\lstset{
+    basicstyle=\ttfamily\small,
+    breaklines=true,
+    frame=single,
+    backgroundcolor=\color{gray!10}
+}
+
+% ── Custom commands ──────────────────────────────────────────
+\newcommand{\vect}[1]{\boldsymbol{#1}}
+\newcommand{\mat}[1]{\mathbf{#1}}
+\newcommand{\ket}[1]{|#1\rangle}
+\newcommand{\bra}[1]{\langle #1|}
+\newcommand{\braket}[2]{\langle #1 | #2 \rangle}
+\newcommand{\expect}[1]{\langle #1 \rangle}
+\DeclareMathOperator{\argmax}{arg\,max}
+
+%% ============================================================
+\begin{document}
+
+\title{
+    \textbf{Multi-Class Vessel Classification from Terrestrial Coastal Radar:\\
+    A Comparative Study of Classical Machine Learning\\
+    and Quantum Machine Learning Approaches}\\[0.5em]
+    \large Working Paper — Feature Analysis, Methodology and Results
+}
+\author{
+    [Author Name]\\
+    \textit{[Institution / Affiliation]}\\
+    \texttt{[email]}
+}
+\date{\today}
+\maketitle
+
+\begin{abstract}
+This paper presents a comprehensive study of multi-class vessel type classification
+using features extracted from a terrestrial X-band coastal surveillance radar.
+Five vessel types — Fishing (Type 30), Dredger/Underwater Ops (Type 33),
+Tug (Type 52), Cargo (Type 70), and Tanker (Type 80) — are distinguished
+using radar-derived features including amplitude, spatial extent, and azimuth.
+We systematically examine each feature's physical interpretation and statistical
+separability, then compare the classification performance of classical machine
+learning algorithms (Random Forest, Support Vector Machine, Multi-Layer
+Perceptron, Gradient Boosting Trees) against three Quantum Machine Learning
+(QML) approaches: Variational Quantum Classifier (VQC), Hybrid Quantum--Classical
+Neural Network (HQNN), and Quantum Kernel Estimation (QKE).
+A key contribution is the derivation of radar-native physical size descriptors
+— down-range extent and cross-range physical extent — as discriminating features
+for the traditionally difficult cargo vs.\ tanker boundary.
+Results are evaluated by accuracy, macro F1-score, area under the ROC curve (AUC),
+and model confidence score distributions.
+\end{abstract}
+
+\tableofcontents
+\newpage
+
+%% ============================================================
+\section{Introduction}
+\label{sec:introduction}
+
+Terrestrial coastal radar systems continuously monitor maritime traffic by
+detecting, tracking, and reporting the position and motion of vessels in their
+surveillance zone. While radar provides reliable detection of physical objects,
+identifying the \emph{type} of vessel from radar returns alone is a non-trivial
+classification problem. Traditionally, vessel identity is obtained from the
+Automatic Identification System (AIS), a transponder-based reporting protocol.
+However, AIS can be switched off, spoofed, or simply absent on non-SOLAS vessels.
+A radar system capable of inferring vessel type purely from its own measurements
+would therefore provide an independent, passive classification capability of
+significant maritime domain awareness value.
+
+This paper addresses the following research questions:
+\begin{enumerate}[label=\textbf{RQ\arabic*.}]
+    \item Which radar-extracted features carry the most discriminating information
+          for vessel type classification?
+    \item Do classical ML algorithms achieve satisfactory classification accuracy
+          on this naturally imbalanced, feature-overlapping dataset?
+    \item Does Quantum Machine Learning offer measurable advantages over classical
+          approaches in terms of accuracy, generalisation, or confidence calibration?
+    \item Can the historically difficult Cargo (Type~70) vs.\ Tanker (Type~80)
+          boundary be resolved by correctly derived radar-native size features?
+\end{enumerate}
+
+The paper is structured as follows.
+Section~\ref{sec:radar_background} explains the physics of radar measurement and
+how each feature is extracted.
+Section~\ref{sec:dataset} describes the dataset, class distribution, and
+statistical separability analysis.
+Section~\ref{sec:preprocessing} covers data cleaning, normalisation, and class
+balancing.
+Section~\ref{sec:classical_ml} presents the classical ML models.
+Section~\ref{sec:qml} introduces the QML approaches.
+Section~\ref{sec:experiments} describes the experimental setup.
+Section~\ref{sec:results} presents and compares the results.
+Section~\ref{sec:discussion} discusses findings, confidence calibration, and
+limitations.
+Section~\ref{sec:conclusion} concludes the paper.
+
+%% ============================================================
+\section{Radar Background and Feature Extraction}
+\label{sec:radar_background}
+
+\subsection{Terrestrial Radar Operation}
+
+A terrestrial coastal surveillance radar emits short pulses of electromagnetic
+energy and listens for the reflections (echoes) returned by objects within its
+coverage area. The fundamental measured quantities are:
+\begin{itemize}
+    \item \textbf{Range} $r$: the radial distance from the radar antenna to the
+          target, inferred from the round-trip travel time of the pulse,
+          $r = c \cdot \Delta t / 2$, where $c$ is the speed of light.
+    \item \textbf{Azimuth} $\phi$: the angular bearing of the target measured
+          clockwise from North, determined by the orientation of the rotating
+          antenna at the moment of detection.
+    \item \textbf{Amplitude}: the strength of the received echo, related to the
+          target's Radar Cross Section (RCS).
+\end{itemize}
+
+A vessel occupies multiple range and azimuth resolution cells simultaneously.
+The radar processing pipeline groups contiguous cells that exceed a detection
+threshold into a single \emph{plot}, and a tracking algorithm associates
+successive plots into a \emph{track} (the vessel's trajectory over time).
+
+\subsection{Feature Dictionary}
+\label{sec:features}
+
+Table~\ref{tab:features} summarises all extracted features.
+The subsections below explain each feature in detail.
+
+\begin{table}[H]
+\centering
+\caption{Complete feature dictionary. All features are radar-native unless noted.}
+\label{tab:features}
+\begin{tabular}{llp{7cm}}
+\toprule
+\textbf{Feature} & \textbf{Unit} & \textbf{Description} \\
+\midrule
+\multicolumn{3}{l}{\textit{Spatial position}} \\
+\texttt{range}              & m           & Radial distance from antenna to target \\
+\texttt{azimuth}            & rad         & Angular bearing (0 = North, clockwise) \\
+\texttt{RLatitude}          & deg         & Estimated target latitude \\
+\texttt{RLongitude}         & deg         & Estimated target longitude \\
+\midrule
+\multicolumn{3}{l}{\textit{Amplitude / Radar Cross Section}} \\
+\texttt{PeakAmplitude}      & linear      & Maximum received power across the plot window \\
+\texttt{TotalAmplitude}     & linear      & Sum of received power across all cells in the plot window \\
+\texttt{PeakAmplitude\_corr}  & linear    & Range-corrected peak amplitude (see Eq.~\ref{eq:amp_corr}) \\
+\texttt{TotalAmplitude\_corr} & linear    & Range-corrected total amplitude \\
+\midrule
+\multicolumn{3}{l}{\textit{Spatial extent — raw gate widths}} \\
+\texttt{winrgw}             & m           & Window range gate width (full detection window in range) \\
+\texttt{winazw}             & rad         & Window azimuth gate width (full detection window in azimuth) \\
+\texttt{rgw} / \texttt{down\_range\_extent}  & m  & Range gate width of the plot (vessel extent along range axis) \\
+\texttt{azw} / \texttt{cross\_range\_extent} & rad & Azimuth gate width of the plot (vessel extent along azimuth axis) \\
+\midrule
+\multicolumn{3}{l}{\textit{Spatial extent — derived physical dimensions}} \\
+\texttt{az\_extent\_m}      & m           & Physical azimuth extent: $r \times \texttt{azw}$ (Eq.~\ref{eq:az_extent}) \\
+\texttt{euclid\_size}       & m           & Euclidean size: $\sqrt{\texttt{rgw}^2 + \texttt{azw}^2} \approx \texttt{rgw}$ \\
+\texttt{ellipse\_area}      & m$^2$       & $\pi \cdot (\texttt{rgw}/2) \cdot (\texttt{azw}/2)$ \\
+\texttt{size\_beam\_component}     & m   & Size projected onto vessel beam axis (aspect-dependent) \\
+\texttt{size\_bow\_stern\_component} & m & Size projected onto vessel bow–stern axis (aspect-dependent) \\
+\texttt{cr\_dr\_ratio}      & —           & $\texttt{azw} / \texttt{rgw}$: shape elongation ratio \\
+\midrule
+\multicolumn{3}{l}{\textit{Motion}} \\
+\texttt{RSog}               & kn          & Radar-measured speed over ground \\
+\texttt{RCog}               & rad         & Radar-measured course over ground \\
+\texttt{AvgRSog}            & kn          & Moving average of radar speed \\
+\texttt{aspect}             & rad         & Aspect angle: angle between vessel heading and radar line-of-sight \\
+\texttt{aspect\_fold}       & rad         & Folded aspect (symmetrised, range $[0, \pi/2]$) \\
+\texttt{aspect\_sin}        & —           & $\sin(\texttt{aspect\_fold})$ \\
+\texttt{aspect\_cos}        & —           & $\cos(\texttt{aspect\_fold})$ \\
+\midrule
+\multicolumn{3}{l}{\textit{Temporal rolling statistics (window $w \in \{900, 1800, 3600, 10800\}$ s)}} \\
+\texttt{measured\_sog\_avg\_$w$}    & kn  & Mean speed over window $w$ \\
+\texttt{measured\_sog\_std\_$w$}    & kn  & Speed variability over window $w$ \\
+\texttt{measured\_cog\_avg\_$w$}    & rad & Mean course over window $w$ \\
+\texttt{measured\_cog\_std\_$w$}    & rad & Course variability (heading steadiness) \\
+\texttt{measured\_size\_avg\_$w$}   & m   & Mean track size over window $w$ \\
+\texttt{measured\_rangeStd\_$w$}    & m   & Std of range positions (manoeuvring indicator) \\
+\texttt{measured\_azimuthStd\_$w$}  & rad & Std of azimuth positions \\
+\midrule
+\multicolumn{3}{l}{\textit{AIS-derived labels (not used as model features)}} \\
+\texttt{AIS\_LENGTH}        & m           & Vessel physical length from AIS transponder \\
+\texttt{AIS\_WIDTH}         & m           & Vessel physical beam from AIS transponder \\
+\texttt{Type}               & —           & AIS vessel type code (ground-truth label) \\
+\texttt{size\_class}        & —           & Categorical: small / medium / large \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsubsection{Azimuth ($\phi$)}
+
+The azimuth is the horizontal bearing angle from the radar antenna to the target,
+measured in radians (or degrees) clockwise from North:
+\begin{equation}
+    \phi = \text{atan2}(\Delta E,\, \Delta N) \mod 2\pi
+\end{equation}
+where $\Delta E$ and $\Delta N$ are the East and North displacements.
+For a rotating antenna, azimuth is directly read from the antenna encoder at
+the moment of detection. The azimuth value for a given vessel varies as the
+vessel moves around the radar coverage area, making it a \emph{positional}
+rather than a vessel-intrinsic feature. Nevertheless, different vessel types
+concentrate in different operational zones (e.g., tankers in deep-water channels,
+fishing vessels in shallower sectors), giving azimuth moderate discriminating
+power (Cohen's $d \approx 0.51$ for Cargo vs.\ Tanker in our dataset).
+
+\subsubsection{Amplitude Features}
+
+\paragraph{Raw amplitudes.}
+The radar receiver records the signal power in each range-azimuth resolution cell.
+For a detection, two aggregate amplitude values are computed over the plot window:
+
+\begin{align}
+    \texttt{PeakAmplitude} &= \max_{i \in \text{plot}} A_i \label{eq:peak}\\
+    \texttt{TotalAmplitude} &= \sum_{i \in \text{plot}} A_i \label{eq:total}
+\end{align}
+
+where $A_i$ is the received power amplitude in cell $i$.
+\texttt{PeakAmplitude} captures the brightest point on the vessel (often the
+bridge or superstructure). \texttt{TotalAmplitude} captures the integrated RCS
+over the entire vessel footprint and is proportional to the vessel's total
+reflecting area.
+
+\paragraph{Range-corrected amplitudes.}
+Raw radar amplitude decays with range according to the radar range equation.
+For monostatic radar under free-space propagation:
+\begin{equation}
+    P_r = \frac{P_t G^2 \lambda^2 \sigma}{(4\pi)^3 r^4}
+    \label{eq:radar_eq}
+\end{equation}
+where $P_r$ is received power, $P_t$ is transmitted power, $G$ is antenna gain,
+$\lambda$ is wavelength, $\sigma$ is the target RCS, and $r$ is range.
+To make amplitude features range-invariant (i.e., reflecting the vessel's
+\emph{intrinsic} RCS rather than its distance), range-corrected values are
+computed:
+\begin{equation}
+    \texttt{PeakAmplitude\_corr} = \texttt{PeakAmplitude} \cdot r^4 / C
+    \label{eq:amp_corr}
+\end{equation}
+where $C$ is a system constant. Range-corrected amplitudes are more physically
+meaningful for comparing vessels at different ranges.
+
+\paragraph{Physical interpretation for vessel classification.}
+Larger vessels (Tanker, Cargo) generally exhibit higher \texttt{TotalAmplitude}
+than smaller vessels (Tug, Fishing), but within large-vessel classes the
+amplitude overlap is significant because RCS depends not only on size but also
+on aspect angle, hull material, and sea state.
+
+\subsubsection{Spatial Extent Features}
+\label{sec:size_features}
+
+A vessel occupies a finite number of range and azimuth resolution cells.
+The \emph{extent} of the detection in each axis provides a measure of the
+vessel's physical dimensions as seen by the radar.
+
+\paragraph{Range gate width (\texttt{rgw} / \texttt{down\_range\_extent}).}
+This is the number of range resolution cells occupied by the detection, converted
+to metres by multiplying by the range resolution $\delta r$:
+\begin{equation}
+    \texttt{rgw} = N_r \cdot \delta r \quad [\text{metres}]
+\end{equation}
+It approximates the vessel's \emph{length projected along the radar line-of-sight}
+(the down-range dimension). For a vessel at aspect angle $\alpha$ with true
+length $L$:
+\begin{equation}
+    \texttt{rgw} \approx L \cos\alpha + W \sin\alpha
+\end{equation}
+where $W$ is the vessel beam width.
+
+\paragraph{Azimuth gate width (\texttt{azw} / \texttt{cross\_range\_extent}).}
+This is the angular span of the detection in the azimuth dimension, in radians:
+\begin{equation}
+    \texttt{azw} = N_\phi \cdot \delta\phi \quad [\text{radians}]
+\end{equation}
+where $N_\phi$ is the number of azimuth cells and $\delta\phi$ is the azimuth
+resolution. Note that \texttt{azw} is in \emph{angular} units; it must be
+converted to physical length before size comparison.
+
+\paragraph{Physical azimuth extent (\texttt{az\_extent\_m}).}
+The arc length subtended by the detection at range $r$ is:
+\begin{equation}
+    \texttt{az\_extent\_m} = r \cdot \texttt{azw} \quad [\text{metres}]
+    \label{eq:az_extent}
+\end{equation}
+This is the vessel's \emph{cross-range physical extent} — the dimension
+perpendicular to the radar beam direction. For a vessel at aspect $\alpha$:
+\begin{equation}
+    \texttt{az\_extent\_m} \approx L \sin\alpha + W \cos\alpha
+\end{equation}
+Together, \texttt{rgw} and \texttt{az\_extent\_m} represent the two orthogonal
+projections of the vessel's hull geometry onto the radar measurement axes.
+A tanker, being wide relative to its length (low length-to-beam ratio), tends
+to show a larger \texttt{az\_extent\_m} than a cargo vessel of similar length.
+In our dataset, mean \texttt{az\_extent\_m} for Tanker (Type~80) is 898~m
+versus 634~m for Cargo (Type~70), giving Cohen's $d = 0.502$.
+
+\paragraph{Why \texttt{euclid\_size} $\approx$ \texttt{rgw} in this dataset.}
+A common derived size metric is:
+\begin{equation}
+    \texttt{euclid\_size} = \sqrt{\texttt{rgw}^2 + \texttt{azw}^2}
+\end{equation}
+However, because \texttt{azw} is stored in radians ($\sim$0.02), while
+\texttt{rgw} is in metres ($\sim$200), the azimuth term is negligible:
+\begin{equation}
+    \sqrt{200^2 + 0.02^2} \approx 200 \approx \texttt{rgw}
+\end{equation}
+Therefore \texttt{euclid\_size} is \emph{numerically identical} to \texttt{rgw}
+in this dataset and carries no additional information. The same applies to
+\texttt{ellipse\_area}:
+\begin{equation}
+    \texttt{ellipse\_area} = \pi \cdot \frac{\texttt{rgw}}{2} \cdot \frac{\texttt{azw}}{2}
+    \approx \pi \cdot 100 \cdot 0.01 \approx 3.1
+\end{equation}
+This near-zero value is meaningless as a discriminating feature.
+The physically correct formulation requires converting azimuth to metres first
+(i.e., using \texttt{az\_extent\_m}), then computing:
+\begin{align}
+    \texttt{euclid\_size\_phys} &= \sqrt{\texttt{rgw}^2 + \texttt{az\_extent\_m}^2} \\
+    \texttt{ellipse\_area\_phys} &= \pi \cdot \frac{\texttt{rgw}}{2} \cdot \frac{\texttt{az\_extent\_m}}{2}
+\end{align}
+
+\paragraph{Aspect-decomposed size components.}
+Given the estimated aspect angle $\alpha$ (angle between vessel heading and
+radar line-of-sight), the size can be decomposed into:
+\begin{align}
+    \texttt{size\_bow\_stern\_component} &= \texttt{euclid\_size} \cdot \cos\alpha \\
+    \texttt{size\_beam\_component}       &= \texttt{euclid\_size} \cdot \sin\alpha
+\end{align}
+When the vessel is bow-on ($\alpha \approx 0$), the bow--stern component
+dominates; broadside ($\alpha \approx \pi/2$) gives a large beam component.
+
+\subsubsection{Motion and Aspect Features}
+
+\paragraph{Radar speed and course (\texttt{RSog}, \texttt{RCog}).}
+The radar tracker estimates vessel velocity from successive plot positions:
+\begin{equation}
+    \texttt{RSog} = \frac{\|\vect{p}_{t} - \vect{p}_{t-1}\|}{\Delta t}, \qquad
+    \texttt{RCog} = \text{atan2}(p_{E,t}-p_{E,t-1},\, p_{N,t}-p_{N,t-1})
+\end{equation}
+Speed and course provide behavioural signatures: tankers typically cruise at
+steady 10--14~knots on fixed routes; fishing vessels show low, variable speeds
+with frequent course changes.
+
+\paragraph{Aspect angle ($\alpha$).}
+The aspect angle is the angle between the vessel's heading $\psi$ and the
+direction from the vessel to the radar $\phi_{\text{to-radar}}$:
+\begin{equation}
+    \alpha = |\psi - \phi_{\text{to-radar}}|
+\end{equation}
+Because the radar signature of a vessel is highly aspect-dependent (a broadside
+vessel appears much larger than a bow-on vessel), aspect is important for
+interpreting amplitude and size features. Three representations are used:
+\begin{align}
+    \texttt{aspect\_fold}  &= \min(\alpha,\, \pi - \alpha) \in [0,\, \pi/2] \\
+    \texttt{aspect\_sin}   &= \sin(\texttt{aspect\_fold}) \\
+    \texttt{aspect\_cos}   &= \cos(\texttt{aspect\_fold})
+\end{align}
+The folded representation removes the bow/stern ambiguity (a vessel looks the
+same from the front and the back).
+
+\subsubsection{Temporal Rolling Statistics}
+
+For each vessel track, rolling statistics are computed over four time windows:
+$w \in \{900, 1800, 3600, 10800\}$ seconds (15~min, 30~min, 1~h, 3~h).
+For each window $w$ ending at time $t$, let $\mathcal{W} = \{s : t-w \le s \le t\}$:
+
+\begin{align}
+    \texttt{measured\_sog\_avg\_}w &= \frac{1}{|\mathcal{W}|}\sum_{s \in \mathcal{W}} \text{SOG}_s \\
+    \texttt{measured\_sog\_std\_}w &= \text{std}_{s \in \mathcal{W}}(\text{SOG}_s) \\
+    \texttt{measured\_cog\_std\_}w &= \text{std}_{s \in \mathcal{W}}(\text{COG}_s) \quad \text{(heading steadiness)}\\
+    \texttt{measured\_rangeStd\_}w &= \text{std}_{s \in \mathcal{W}}(r_s) \quad \text{(spatial spread in range)}
+\end{align}
+
+These temporal features capture \emph{behavioural patterns}:
+\begin{itemize}
+    \item A low \texttt{measured\_cog\_std} indicates a vessel maintaining a
+          steady course (characteristic of large transit vessels: Cargo, Tanker).
+    \item High \texttt{measured\_sog\_std} indicates speed variability
+          (characteristic of Fishing, Tug).
+    \item Low \texttt{measured\_rangeStd} for a 3-hour window indicates
+          stationary or slow-moving operation (Dredger, anchor).
+\end{itemize}
+
+%% ============================================================
+\section{Dataset Description}
+\label{sec:dataset}
+
+\subsection{Data Collection}
+
+The dataset was collected from a network of X-band terrestrial coastal radar
+stations operating in a coastal surveillance environment. Raw radar tracks
+(plots) are fused with AIS reports to provide ground-truth vessel type labels
+using the ITU-R AIS vessel type codes. After AIS correlation, each radar
+observation carries a confirmed vessel type label.
+
+\subsection{Vessel Type Classes}
+
+Five vessel types are selected for classification based on their operational
+relevance and AIS type code prevalence:
+
+\begin{table}[H]
+\centering
+\caption{Target classification classes.}
+\label{tab:classes}
+\begin{tabular}{cll}
+\toprule
+\textbf{Type Code} & \textbf{Vessel Category} & \textbf{Characteristics} \\
+\midrule
+30 & Fishing           & Small to medium, variable speed, non-linear tracks \\
+33 & Dredging / Underwater Ops & Medium to large, very low speed or stationary \\
+52 & Tug               & Small, powerful, assists other vessels \\
+70 & Cargo             & Large, steady speed 10--14~kn, straight tracks \\
+80 & Tanker            & Large, slightly wider beam than cargo, steady transit \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Dataset Statistics}
+
+\begin{table}[H]
+\centering
+\caption{Dataset statistics after cleaning (zero-amplitude rows removed).}
+\label{tab:dataset_stats}
+\begin{tabular}{lrrrrrr}
+\toprule
+\textbf{Feature} & \textbf{Type 30} & \textbf{Type 33} & \textbf{Type 52}
+                 & \textbf{Type 70} & \textbf{Type 80} & \textbf{Overall} \\
+\midrule
+Count           & 3{,}729  & 6{,}022  & 3{,}540  & 59{,}041  & 28{,}098  & 100{,}430 \\
+\midrule
+azimuth (mean)          & --   & --  & --  & 2.3 & 3.0 & -- \\
+PeakAmplitude (mean)    & --   & --  & --  & 182 & 174 & -- \\
+TotalAmplitude (mean)   & --   & --  & -- & 85{,}824 & 103{,}890 & -- \\
+down\_range\_ext (mean) & 169  & 353 & 188 & 293 & 270 & 240 \\
+az\_extent\_m (mean)    & 262  & 590 & 499 & 634 & 898 & 585 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Class Imbalance}
+
+The dataset exhibits significant class imbalance, with Cargo (Type~70) accounting
+for 59\% of all observations. The class ratio between the largest (Type~70:
+59,041) and smallest (Type~30: 3,729) class is approximately 16:1.
+This imbalance must be addressed during training (see Section~\ref{sec:balancing}).
+
+\subsection{Feature Separability Analysis}
+\label{sec:separability}
+
+Cohen's $d$ measures the standardised mean difference between two classes:
+\begin{equation}
+    d = \frac{\mu_A - \mu_B}{\sqrt{(\sigma_A^2 + \sigma_B^2)/2}}
+\end{equation}
+A value of $|d| < 0.5$ indicates poor separability, $0.5$--$0.8$ moderate,
+and $>0.8$ strong. Table~\ref{tab:cohen} shows Cohen's $d$ for the critical
+Cargo (70) vs.\ Tanker (80) boundary under different feature sets.
+
+\begin{table}[H]
+\centering
+\caption{Cohen's $d$ for Cargo (Type~70) vs.\ Tanker (Type~80).}
+\label{tab:cohen}
+\begin{tabular}{lrll}
+\toprule
+\textbf{Feature} & \textbf{Cohen's $d$} & \textbf{Interpretation} & \textbf{Dataset} \\
+\midrule
+azimuth             & 0.508 & Moderate & radarfeatureL\_Study \\
+az\_extent\_m       & 0.502 & Moderate & radarfeatureL\_Study \\
+TotalAmplitude      & 0.231 & Poor     & radarfeatureL\_Study \\
+down\_range\_extent & 0.240 & Poor     & radarfeatureL\_Study \\
+PeakAmplitude       & 0.203 & Poor     & radarfeatureL\_Study \\
+\midrule
+azimuth (original 5-feat) & 0.454 & Poor & Radar data.csv \\
+TotalAmplitude            & 0.312 & Poor & Radar data.csv \\
+ellipse\_area             & 0.361 & Poor & Radar data.csv \\
+euclid\_size              & 0.320 & Poor & Radar data.csv \\
+PeakAmplitude             & 0.191 & Poor & Radar data.csv \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The introduction of \texttt{az\_extent\_m} as a physically correct cross-range
+extent (in metres) brings the 70/80 Cohen's $d$ from below 0.5 to 0.502,
+the first time any feature in this study achieves separability at or above
+the moderate threshold for this class pair.
+
+%% ============================================================
+\section{Data Preprocessing}
+\label{sec:preprocessing}
+
+\subsection{Cleaning}
+\label{sec:cleaning}
+
+The following cleaning steps are applied:
+\begin{enumerate}
+    \item \textbf{Zero-amplitude removal}: Rows where \texttt{PeakAmplitude}~$= 0$
+          are removed. These correspond to ghost tracks or failed plot associations
+          where no actual radar return was linked to the track record.
+          In the study dataset, 17,532 of 117,962 target-class rows (14.9\%) are
+          removed by this filter.
+    \item \textbf{Class filtering}: Only the five target classes
+          (30, 33, 52, 70, 80) are retained.
+    \item \textbf{Feature derivation}: \texttt{az\_extent\_m} is computed as
+          $r \times \texttt{cross\_range\_extent}$.
+    \item \textbf{Null removal}: Rows with null values in any selected feature
+          column are dropped.
+\end{enumerate}
+
+\subsection{Feature Normalisation}
+\label{sec:normalisation}
+
+All features are standardised using the training-set mean $\mu$ and standard
+deviation $\sigma$ (StandardScaler):
+\begin{equation}
+    x' = \frac{x - \mu}{\sigma}
+\end{equation}
+The scaler parameters are fitted on the training set only and applied
+identically to the test set and any new inference data, preventing data leakage.
+
+\subsection{Class Balancing with SMOTE}
+\label{sec:balancing}
+
+The Synthetic Minority Over-sampling Technique (SMOTE)~\cite{chawla2002smote}
+is applied to the training set to address class imbalance. SMOTE generates
+synthetic samples for minority classes by interpolating between existing
+minority-class samples in feature space:
+\begin{equation}
+    \vect{x}_{\text{new}} = \vect{x}_i + \lambda \cdot (\vect{x}_{k} - \vect{x}_i),
+    \quad \lambda \sim \mathcal{U}(0,1)
+\end{equation}
+where $\vect{x}_i$ is an existing minority sample and $\vect{x}_k$ is one of
+its $K$ nearest neighbours ($K=5$ by default). SMOTE is applied exclusively
+to the training set; the test set retains the original class distribution.
+
+Additionally, \textbf{class-weighted loss} is used during neural network and
+quantum model training:
+\begin{equation}
+    w_c = \frac{N}{n_c \cdot C}
+\end{equation}
+where $N$ is total training samples, $n_c$ is the count of class $c$, and
+$C$ is the number of classes.
+
+\subsection{Train / Test Split}
+
+An 80/20 stratified split is used, preserving the original class proportions
+in both subsets. The split is performed \emph{before} SMOTE to ensure no
+synthetic samples appear in the test set.
+
+%% ============================================================
+\section{Classical Machine Learning Models}
+\label{sec:classical_ml}
+
+\subsection{Random Forest (RF)}
+
+Random Forest~\cite{breiman2001random} builds an ensemble of $T$ decision trees,
+each trained on a bootstrapped sample and a random subset of features. The
+predicted class is the majority vote across all trees:
+\begin{equation}
+    \hat{y} = \text{mode}\{h_t(\vect{x})\}_{t=1}^T
+\end{equation}
+RF is robust to overfitting, handles mixed-scale features without normalisation,
+and provides feature importance estimates. It serves as the baseline classical
+model in this study.
+
+\subsection{Support Vector Machine (SVM)}
+
+SVM~\cite{cortes1995support} finds the maximum-margin hyperplane separating
+classes in a (possibly kernelised) feature space. For multi-class problems,
+a one-vs-one scheme is used. With the Radial Basis Function (RBF) kernel:
+\begin{equation}
+    K(\vect{x}_i, \vect{x}_j) = \exp\!\left(-\gamma \|\vect{x}_i - \vect{x}_j\|^2\right)
+\end{equation}
+SVM is effective in high-dimensional spaces but computationally expensive
+at scale ($\mathcal{O}(N^2)$--$\mathcal{O}(N^3)$).
+
+\subsection{Multi-Layer Perceptron (MLP)}
+
+A feedforward neural network with $L$ hidden layers:
+\begin{equation}
+    \vect{h}^{(l)} = \sigma\!\left(\mat{W}^{(l)} \vect{h}^{(l-1)} + \vect{b}^{(l)}\right),
+    \quad \vect{h}^{(0)} = \vect{x}
+\end{equation}
+where $\sigma$ is the ReLU activation. The output layer applies softmax to
+produce class probabilities. Trained with Adam optimiser and cross-entropy loss.
+
+\subsection{Gradient Boosting Trees (GBT)}
+
+GBT~\cite{friedman2001greedy} builds an additive ensemble of weak learners
+(shallow decision trees) in a stage-wise fashion, where each tree corrects
+the residual errors of its predecessors:
+\begin{equation}
+    F_m(\vect{x}) = F_{m-1}(\vect{x}) + \eta \cdot h_m(\vect{x})
+\end{equation}
+where $\eta$ is the learning rate and $h_m$ is fitted to the negative gradient
+of the loss. GBT excels at capturing non-linear feature interactions
+(e.g., large \texttt{az\_extent\_m} \emph{and} low speed $\Rightarrow$ Tanker)
+that are difficult for linear or single-feature-based models.
+
+%% ============================================================
+\section{Quantum Machine Learning Models}
+\label{sec:qml}
+
+\subsection{Quantum Computing Primer}
+
+A quantum computer operates on \emph{qubits} — quantum analogues of classical
+bits. A single qubit state is a superposition:
+\begin{equation}
+    \ket{\psi} = \alpha\ket{0} + \beta\ket{1}, \quad |\alpha|^2 + |\beta|^2 = 1
+\end{equation}
+An $n$-qubit system lives in a $2^n$-dimensional Hilbert space, enabling
+exponentially large state spaces. Quantum gates are unitary operations $U$
+acting on one or more qubits. A quantum circuit is a sequence of gates applied
+to an initial state $\ket{0}^{\otimes n}$.
+
+\subsection{Data Encoding}
+
+Classical feature vectors must be encoded into quantum states before processing.
+We use \textbf{angle encoding} (also called \emph{rotational encoding}):
+\begin{equation}
+    \text{Encode}(\vect{x}) = \bigotimes_{i=1}^{n} R_y(x_i) \ket{0}
+\end{equation}
+where $R_y(\theta) = \exp(-i\theta Y/2)$ is a rotation about the $Y$-axis
+by angle $\theta$. One qubit encodes one feature; for $d$ features, $d$ qubits
+are required. Features are normalised to $[0, \pi]$ before encoding.
+After encoding, qubit $i$ holds:
+\begin{equation}
+    R_y(x_i)\ket{0} = \cos\!\tfrac{x_i}{2}\ket{0} + \sin\!\tfrac{x_i}{2}\ket{1}
+\end{equation}
+
+\subsection{Variational Quantum Classifier (VQC)}
+\label{sec:vqc}
+
+The VQC~\cite{schuld2020circuit} is a parameterised quantum circuit used
+as a classifier. It consists of three components:
+
+\begin{enumerate}
+    \item \textbf{Feature embedding layer} $U_\phi(\vect{x})$: encodes input
+          features into the quantum state using angle encoding.
+    \item \textbf{Variational (ansatz) layer} $U_\theta(\vect{\theta})$: a
+          sequence of parameterised single-qubit rotations and two-qubit
+          entangling gates, repeated for $L$ layers.
+    \item \textbf{Measurement layer}: Pauli-$Z$ expectation values
+          $\langle Z_i \rangle = \bra{\psi}Z_i\ket{\psi} \in [-1, 1]$
+          are measured on each qubit and passed through a classical linear
+          layer to produce class logits.
+\end{enumerate}
+
+We use the \textbf{Strongly Entangling Layers} ansatz~\cite{pennylane2019},
+which applies $R_z$, $R_y$, $R_z$ rotations on each qubit followed by a
+ring of CNOT gates, creating entanglement between all qubits:
+\begin{equation}
+    U_\text{SEL}(\vect{\theta}) = \prod_{l=1}^{L} \left[
+        \prod_{i=1}^{n} R_z(\theta_{l,i,1}) R_y(\theta_{l,i,2}) R_z(\theta_{l,i,3})
+        \cdot \text{CNOT}_{i \to i+1}
+    \right]
+\end{equation}
+
+The full VQC circuit is:
+\begin{equation}
+    \ket{\psi(\vect{x}, \vect{\theta})} = U_\theta(\vect{\theta})\, U_\phi(\vect{x}) \ket{0}^{\otimes n}
+\end{equation}
+
+The output class probabilities are:
+\begin{equation}
+    p_c = \text{softmax}\!\left(\mat{W}_{\text{out}} \cdot [\langle Z_1 \rangle, \dots, \langle Z_n \rangle]^\top + \vect{b}\right)_c
+\end{equation}
+
+\textbf{Configuration used:}
+$n = 5$ qubits (one per feature), $L = 3$ ansatz layers,
+Adam optimiser, learning rate $\eta = 0.005$, early stopping (patience = 20).
+
+\subsection{Hybrid Quantum--Classical Neural Network (HQNN)}
+\label{sec:hqnn}
+
+The HQNN~\cite{mari2020transfer} combines classical and quantum layers:
+\begin{enumerate}
+    \item \textbf{Classical pre-processing layers}: Fully connected layers
+          with ReLU activation transform the input features before quantum encoding.
+          This allows the network to learn a better feature representation
+          for the quantum circuit.
+    \item \textbf{Quantum layer} (PennyLane TorchLayer): the VQC sub-circuit
+          with angle encoding and strongly entangling ansatz.
+    \item \textbf{Classical post-processing layers}: Further linear layers map
+          quantum measurements to final class probabilities.
+\end{enumerate}
+
+\begin{equation}
+    \hat{\vect{y}} = \text{softmax}\!\left(
+        f_{\text{post}}\!\left(
+            Q_\theta\!\left(f_{\text{pre}}(\vect{x})\right)
+        \right)
+    \right)
+\end{equation}
+
+\textbf{Configuration used:}
+$n = 5$ qubits, $L = 2$ quantum layers, 2 classical hidden layers of width 32,
+Adam, $\eta = 0.005$, early stopping (patience = 20).
+
+\subsection{Quantum Kernel Estimation (QKE)}
+\label{sec:qke}
+
+QKE~\cite{havlicek2019supervised} computes a kernel matrix using the quantum
+feature map $\phi : \vect{x} \mapsto \ket{\phi(\vect{x})}$, then trains a
+classical Support Vector Machine on this kernel:
+\begin{equation}
+    k(\vect{x}_i, \vect{x}_j) = |\braket{\phi(\vect{x}_i)}{\phi(\vect{x}_j)}|^2
+\end{equation}
+The quantum advantage (if any) arises when the quantum feature map induces a
+kernel that is exponentially hard to compute classically. QKE has quadratic
+complexity $\mathcal{O}(N^2)$ in the number of training samples, making it
+expensive for large datasets.
+
+\subsection{Training with PennyLane and PyTorch}
+
+All quantum models are implemented using PennyLane~\cite{pennylane2019} with
+the PyTorch interface. The quantum circuit is embedded as a \texttt{TorchLayer},
+making the full model differentiable and trainable with standard PyTorch
+optimisers via the \emph{parameter-shift rule}:
+\begin{equation}
+    \frac{\partial}{\partial \theta_i} \langle O \rangle = \frac{1}{2}\left[
+        \langle O \rangle_{\theta_i + \pi/2} - \langle O \rangle_{\theta_i - \pi/2}
+    \right]
+\end{equation}
+This allows exact gradient computation without finite differences.
+
+%% ============================================================
+\section{Ensemble Methods}
+\label{sec:ensemble}
+
+\subsection{Soft-Vote Ensemble}
+
+A soft-vote ensemble averages the class probability vectors from multiple models:
+\begin{equation}
+    p_c^{\text{ens}} = \frac{1}{M} \sum_{m=1}^{M} p_c^{(m)}(\vect{x})
+\end{equation}
+The predicted class is $\hat{y} = \argmax_c p_c^{\text{ens}}$.
+By combining models with different inductive biases (e.g., quantum and classical),
+the ensemble can reduce individual model errors.
+
+\subsection{Confidence Score}
+
+The confidence of a prediction is defined as the maximum class probability:
+\begin{equation}
+    \text{conf}(\vect{x}) = \max_c p_c^{\text{ens}}(\vect{x})
+\end{equation}
+A well-calibrated model should show higher confidence on correctly classified
+samples than on misclassified ones. Comparing confidence distributions across
+classical and quantum models provides insight into model calibration.
+
+%% ============================================================
+\section{Experimental Setup}
+\label{sec:experiments}
+
+\subsection{Hardware and Software}
+
+\begin{itemize}
+    \item \textbf{Hardware}: NVIDIA DGX workstation, multi-core CPU (quantum
+          simulation is CPU-bound; no quantum hardware used).
+    \item \textbf{Quantum simulator}: PennyLane \texttt{default.qubit}
+          (statevector simulation).
+    \item \textbf{Framework}: PyTorch 2.x + PennyLane 0.3x + scikit-learn.
+    \item \textbf{Optimiser}: Adam with $\beta_1 = 0.9$, $\beta_2 = 0.999$.
+\end{itemize}
+
+\subsection{Hyperparameter Summary}
+
+\begin{table}[H]
+\centering
+\caption{Hyperparameters for all models.}
+\label{tab:hyperparams}
+\begin{tabular}{llr}
+\toprule
+\textbf{Model} & \textbf{Parameter} & \textbf{Value} \\
+\midrule
+\multirow{4}{*}{VQC}  & Qubits   & 5 \\
+                      & Layers   & 3 \\
+                      & LR       & 0.005 \\
+                      & Patience & 20 \\
+\midrule
+\multirow{5}{*}{HQNN} & Qubits         & 5 \\
+                      & Quantum layers & 2 \\
+                      & Classical hidden & 32 \\
+                      & LR             & 0.005 \\
+                      & Patience       & 20 \\
+\midrule
+\multirow{4}{*}{GBT}  & Estimators  & 300 \\
+                      & Max depth   & 5 \\
+                      & LR          & 0.05 \\
+                      & Subsample   & 0.8 \\
+\midrule
+\multirow{2}{*}{RF}   & Estimators  & 300 \\
+                      & Max features & \texttt{sqrt} \\
+\midrule
+SVM  & Kernel & RBF ($\gamma$ = scale) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Evaluation Metrics}
+
+\begin{itemize}
+    \item \textbf{Accuracy}: $\text{Acc} = \frac{\text{TP}_{\text{all}}}{N}$
+    \item \textbf{Macro F1}: unweighted mean of per-class F1 scores,
+          treating all classes equally regardless of support.
+    \item \textbf{Macro AUC}: area under the one-vs-rest ROC curve, averaged
+          across all classes.
+    \item \textbf{Per-class Recall}: $R_c = \text{TP}_c / (\text{TP}_c + \text{FN}_c)$
+    \item \textbf{Confidence distribution}: histogram of $\max_c p_c$ for correct
+          and incorrect predictions.
+\end{itemize}
+
+%% ============================================================
+\section{Results}
+\label{sec:results}
+
+\subsection{Model Comparison — 5-Feature Baseline (Original Dataset)}
+
+\begin{table}[H]
+\centering
+\caption{Results on original 5 features (azimuth, TotalAmplitude, ellipse\_area,
+euclid\_size, PeakAmplitude). Test set: 124 samples.}
+\label{tab:results_5feat}
+\begin{tabular}{lrrrr}
+\toprule
+\textbf{Model} & \textbf{Accuracy} & \textbf{F1 Macro} & \textbf{AUC} & \textbf{Best Epoch} \\
+\midrule
+VQC (lr=0.005, ES ep8)           & 55.6\% & 56.8\% & 0.780 & 8 \\
+HQNN (lr=0.005, ES ep30)         & 66.9\% & 68.0\% & 0.878 & 30 \\
+Ensemble (VQC + HQNN)            & 66.1\% & 68.1\% & 0.866 & -- \\
+\midrule
+\textit{(Classical baselines — to be completed)} & & & & \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Model Comparison — Corrected 5-Feature Set (Study Dataset)}
+
+\begin{table}[H]
+\centering
+\caption{Results on corrected 5 features (azimuth, PeakAmplitude, TotalAmplitude,
+down\_range\_extent, az\_extent\_m). 10,000 training samples (2,000/class).}
+\label{tab:results_5feat_new}
+\begin{tabular}{lrrrr}
+\toprule
+\textbf{Model} & \textbf{Accuracy} & \textbf{F1 Macro} & \textbf{AUC} & \textbf{Notes} \\
+\midrule
+VQC                     & -- & -- & -- & \textit{(pending)} \\
+HQNN                    & -- & -- & -- & \textit{(pending)} \\
+GBT                     & -- & -- & -- & \textit{(pending)} \\
+Ensemble (VQC+HQNN+GBT) & -- & -- & -- & \textit{(pending)} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Per-Class Recall}
+
+\begin{table}[H]
+\centering
+\caption{Per-class recall (\%) — best model from each approach.}
+\label{tab:per_class}
+\begin{tabular}{lrrrrr}
+\toprule
+\textbf{Model} & \textbf{Type 30} & \textbf{Type 33} & \textbf{Type 52}
+               & \textbf{Type 70} & \textbf{Type 80} \\
+\midrule
+HQNN (5-feat orig) & 100\% & 82\% & 71\% & 67\% & 47\% \\
+Ensemble (merged)  & 98\%  & 89\% & 80\% & 56\% & 50\% \\
+Ensemble (study)   & --    & --   & --   & --   & -- \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+%% ============================================================
+\section{Discussion}
+\label{sec:discussion}
+
+\subsection{The Cargo vs.\ Tanker Boundary}
+
+The Cargo (Type~70) vs.\ Tanker (Type~80) confusion is the dominant classification
+challenge in this study. All features from the original dataset had Cohen's
+$d < 0.5$, placing this boundary below the threshold of statistical separability
+by any individual feature. The introduction of the physically correct
+cross-range extent \texttt{az\_extent\_m} = $r \times \texttt{azw}$ brings
+the separability marginally above this threshold ($d = 0.502$).
+
+Physically, this makes sense: tankers have a higher beam-to-length ratio than
+cargo vessels of comparable size. When viewed broadside at typical coastal ranges
+($r = 5$--$20$~km), a tanker subtends a larger azimuth angle than a cargo ship,
+producing a measurably larger \texttt{az\_extent\_m}. However, because the
+aspect angle varies with vessel orientation, this signal is noisy —
+a cargo vessel viewed broadside may appear wider than a tanker viewed bow-on.
+
+\subsection{Classical ML vs.\ Quantum ML}
+
+\textit{This section will be completed with final results from all models.}
+
+Key dimensions of comparison:
+\begin{itemize}
+    \item \textbf{Accuracy and F1}: Do QML models match or exceed GBT?
+    \item \textbf{Confidence calibration}: Are QML confidence scores better
+          separated between correct/incorrect predictions?
+    \item \textbf{Training efficiency}: How do epoch counts and convergence
+          speed compare?
+    \item \textbf{Data efficiency}: Do QML models achieve competitive
+          performance with fewer training samples?
+\end{itemize}
+
+\subsection{Limitations}
+
+\begin{enumerate}
+    \item \textbf{Quantum simulation}: All QML experiments are performed on
+          classical quantum simulators. Simulation overhead scales exponentially
+          with qubit count; results on real quantum hardware may differ.
+    \item \textbf{Feature ceiling}: With all Cohen's $d < 0.8$ for the 70/80
+          boundary, there is a fundamental limit to classification accuracy
+          achievable from single-snapshot radar features alone.
+    \item \textbf{Temporal features}: Rolling statistics (SOG, COG variability)
+          were not used as primary features in the initial experiments due to
+          high null rates in short tracks. Their inclusion may further improve
+          Cargo/Tanker separation.
+    \item \textbf{Label quality}: AIS type codes are self-reported and may
+          contain errors. Label noise acts as a hard ceiling on achievable accuracy.
+\end{enumerate}
+
+%% ============================================================
+\section{Conclusion}
+\label{sec:conclusion}
+
+This paper presents the first systematic study of multi-class vessel type
+classification from terrestrial coastal radar using both classical and
+quantum machine learning. We have shown that:
+\begin{enumerate}
+    \item The physical derivation of radar size features matters significantly:
+          computing the cross-range extent in physical metres (\texttt{az\_extent\_m})
+          is essential for separating Cargo from Tanker, whereas the raw azimuth
+          gate width in radians produces near-zero ellipse areas and degenerate
+          Euclidean sizes.
+    \item \textit{(Further conclusions pending final model comparison.)}
+\end{enumerate}
+
+\section*{Acknowledgements}
+\textit{[To be completed]}
+
+%% ============================================================
+\bibliographystyle{plainnat}
+\begin{thebibliography}{99}
+
+\bibitem{breiman2001random}
+Breiman, L. (2001).
+\newblock Random forests.
+\newblock \textit{Machine Learning}, 45(1), 5--32.
+
+\bibitem{chawla2002smote}
+Chawla, N.~V., Bowyer, K.~W., Hall, L.~O., \& Kegelmeyer, W.~P. (2002).
+\newblock SMOTE: Synthetic minority over-sampling technique.
+\newblock \textit{Journal of Artificial Intelligence Research}, 16, 321--357.
+
+\bibitem{cortes1995support}
+Cortes, C., \& Vapnik, V. (1995).
+\newblock Support-vector networks.
+\newblock \textit{Machine Learning}, 20(3), 273--297.
+
+\bibitem{friedman2001greedy}
+Friedman, J.~H. (2001).
+\newblock Greedy function approximation: A gradient boosting machine.
+\newblock \textit{Annals of Statistics}, 29(5), 1189--1232.
+
+\bibitem{havlicek2019supervised}
+Havl{\'i}{\v{c}}ek, V., C{\'o}rcoles, A.~D., Temme, K., Harrow, A.~W.,
+Kandala, A., Chow, J.~M., \& Gambetta, J.~M. (2019).
+\newblock Supervised learning with quantum-enhanced feature spaces.
+\newblock \textit{Nature}, 567(7747), 209--212.
+
+\bibitem{mari2020transfer}
+Mari, A., Bromley, T.~R., Izaac, J., Schuld, M., \& Killoran, N. (2020).
+\newblock Transfer learning in hybrid classical-quantum neural networks.
+\newblock \textit{Quantum}, 4, 340.
+
+\bibitem{pennylane2019}
+Bergholm, V., Izaac, J., Schuld, M., \textit{et al.} (2018).
+\newblock PennyLane: Automatic differentiation of hybrid quantum-classical computations.
+\newblock \textit{arXiv preprint arXiv:1811.04975}.
+
+\bibitem{schuld2020circuit}
+Schuld, M., Bocharov, A., Svore, K.~M., \& Wiebe, N. (2020).
+\newblock Circuit-centric quantum classifiers.
+\newblock \textit{Physical Review A}, 101(3), 032308.
+
+\end{thebibliography}
+
+\end{document}

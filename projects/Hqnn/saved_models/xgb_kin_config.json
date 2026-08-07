@@ -1,0 +1,22 @@
+{
+  "n_features": 9,
+  "n_classes": 4,
+  "model_type": "XGBClassifier",
+  "cv_acc": 0.9310450049902785,
+  "cv_f1": 0.9305304938225799,
+  "test_acc": 0.932392710170488,
+  "test_f1": 0.9318195019834902,
+  "model": "XGB",
+  "feature_cols": [
+    "log_peak_rcs",
+    "log_total_rcs",
+    "rcs_conc",
+    "aspect_ratio",
+    "footprint_m2",
+    "sog",
+    "measured_sog_std_900",
+    "measured_cog_std_900",
+    "measured_sog_avg_900"
+  ],
+  "feature_engineering": "kinematic_rcs"
+}

@@ -1,0 +1,34 @@
+\contentsline {section}{\numberline {1}Introduction}{3}{section.1}%
+\contentsline {section}{\numberline {2}Radar Measurement Fundamentals}{3}{section.2}%
+\contentsline {subsection}{\numberline {2.1}The Radar Measurement Model}{3}{subsection.2.1}%
+\contentsline {paragraph}{Range.}{3}{section*.2}%
+\contentsline {paragraph}{Azimuth.}{3}{section*.3}%
+\contentsline {paragraph}{Amplitude.}{4}{section*.4}%
+\contentsline {subsection}{\numberline {2.2}Plot Formation}{4}{subsection.2.2}%
+\contentsline {section}{\numberline {3}Feature-by-Feature Physical Analysis}{4}{section.3}%
+\contentsline {subsection}{\numberline {3.1}Positional Features}{4}{subsection.3.1}%
+\contentsline {subsubsection}{\numberline {3.1.1}Azimuth ($\phi $, radians)}{4}{subsubsection.3.1.1}%
+\contentsline {subsubsection}{\numberline {3.1.2}Range ($r$, metres)}{4}{subsubsection.3.1.2}%
+\contentsline {subsection}{\numberline {3.2}Amplitude Features}{4}{subsection.3.2}%
+\contentsline {subsubsection}{\numberline {3.2.1}PeakAmplitude}{4}{subsubsection.3.2.1}%
+\contentsline {subsubsection}{\numberline {3.2.2}TotalAmplitude}{5}{subsubsection.3.2.2}%
+\contentsline {subsubsection}{\numberline {3.2.3}Range-Corrected Amplitudes}{5}{subsubsection.3.2.3}%
+\contentsline {subsection}{\numberline {3.3}Spatial Extent Features}{5}{subsection.3.3}%
+\contentsline {subsubsection}{\numberline {3.3.1}Down-Range Extent (\texttt {rgw} / \texttt {down\_range\_extent})}{5}{subsubsection.3.3.1}%
+\contentsline {subsubsection}{\numberline {3.3.2}Cross-Range Extent (\texttt {azw} / \texttt {cross\_range\_extent})}{5}{subsubsection.3.3.2}%
+\contentsline {subsubsection}{\numberline {3.3.3}Physical Cross-Range Extent (\texttt {az\_extent\_m}) — Key Feature}{6}{subsubsection.3.3.3}%
+\contentsline {subsubsection}{\numberline {3.3.4}Why \texttt {euclid\_size} $\equiv $ \texttt {rgw} in This Dataset}{6}{subsubsection.3.3.4}%
+\contentsline {subsubsection}{\numberline {3.3.5}Why \texttt {ellipse\_area} $\approx 0$ in This Dataset}{6}{subsubsection.3.3.5}%
+\contentsline {subsubsection}{\numberline {3.3.6}Shape Ratio (\texttt {cr\_dr\_ratio})}{7}{subsubsection.3.3.6}%
+\contentsline {subsubsection}{\numberline {3.3.7}Aspect-Decomposed Size Components}{7}{subsubsection.3.3.7}%
+\contentsline {subsection}{\numberline {3.4}Motion Features}{7}{subsection.3.4}%
+\contentsline {subsubsection}{\numberline {3.4.1}Radar Speed Over Ground (\texttt {RSog}, knots)}{7}{subsubsection.3.4.1}%
+\contentsline {subsubsection}{\numberline {3.4.2}Radar Course Over Ground (\texttt {RCog}, radians)}{7}{subsubsection.3.4.2}%
+\contentsline {subsection}{\numberline {3.5}Aspect Angle Features}{8}{subsection.3.5}%
+\contentsline {subsection}{\numberline {3.6}Temporal Rolling Statistics}{8}{subsection.3.6}%
+\contentsline {section}{\numberline {4}Statistical Separability Analysis}{9}{section.4}%
+\contentsline {subsection}{\numberline {4.1}Cohen's $d$}{9}{subsection.4.1}%
+\contentsline {subsection}{\numberline {4.2}Results for Cargo (70) vs.\ Tanker (80)}{9}{subsection.4.2}%
+\contentsline {subsection}{\numberline {4.3}Results Across All Class Pairs}{9}{subsection.4.3}%
+\contentsline {section}{\numberline {5}Selected Feature Set}{10}{section.5}%
+\contentsline {section}{\numberline {6}Conclusion}{10}{section.6}%

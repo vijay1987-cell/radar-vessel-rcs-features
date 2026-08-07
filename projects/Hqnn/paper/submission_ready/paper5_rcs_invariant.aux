@@ -1,0 +1,151 @@
+\relax 
+\providecommand\hyper@newdestlabel[2]{}
+\providecommand\HyField@AuxAddToFields[1]{}
+\providecommand\HyField@AuxAddToCoFields[2]{}
+\citation{skolnik2001,ward2013seaclutter}
+\citation{haykin1991clutter,shepherd2022vessel}
+\citation{paper1features}
+\citation{paper4cargotanker}
+\@writefile{toc}{\contentsline {section}{\numberline {I}Introduction}{1}{section.1}\protected@file@percent }
+\newlabel{sec:intro}{{I}{1}{Introduction}{section.1}{}}
+\citation{skolnik2001,knott1993rcs}
+\citation{dcouto2011maritime,nguyen2019vessel}
+\citation{chen2006microdoppler}
+\citation{shepherd2022vessel,haykin1991clutter}
+\citation{zhao2025norm}
+\citation{cai2021mmwave}
+\citation{rahman2023mmwave}
+\citation{cope2021tracking}
+\citation{tanner2025qkm}
+\citation{barretta2025hqnn}
+\@writefile{toc}{\contentsline {section}{\numberline {II}Background}{2}{section.2}\protected@file@percent }
+\newlabel{sec:background}{{II}{2}{Background}{section.2}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {II-A}}Radar Range Equation}{2}{subsection.2.1}\protected@file@percent }
+\newlabel{eq:rre}{{1}{2}{Radar Range Equation}{equation.2.1}{}}
+\newlabel{eq:rre_simplified}{{2}{2}{Radar Range Equation}{equation.2.2}{}}
+\newlabel{eq:rcs_def}{{3}{2}{Radar Range Equation}{equation.2.3}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {II-B}}Previous Vessel Classification Approaches}{2}{subsection.2.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{\numberline {\mbox  {II-B}0a}Kinematic features.}{2}{paragraph.2.2.0.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{\numberline {\mbox  {II-B}0b}Micro-Doppler.}{2}{paragraph.2.2.0.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{\numberline {\mbox  {II-B}0c}Spatial features.}{2}{paragraph.2.2.0.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{\numberline {\mbox  {II-B}0d}Feature normalisation for multi-radar generalisation.}{2}{paragraph.2.2.0.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{\numberline {\mbox  {II-B}0e}Quantum ML for maritime classification.}{2}{paragraph.2.2.0.5}\protected@file@percent }
+\citation{jones2020adjoint}
+\citation{pytorch2019}
+\citation{pennylane2018}
+\@writefile{lof}{\contentsline {figure}{\numberline {1}{\ignorespaces Effect of $R^4$ range correction on peak amplitude. (a)~Raw $\log _{10}(A_p)$ decreases systematically with range following the $R^{-4}$ propagation law (dashed line), mixing vessel-type signal with geometry. (b)~After correction, the range dependence is eliminated and vessel-type clusters separate in RCS space.}}{3}{figure.caption.1}\protected@file@percent }
+\providecommand*\caption@xref[2]{\@setref\relax\@undefined{#1}}
+\newlabel{fig:range_scatter}{{1}{3}{Effect of $R^4$ range correction on peak amplitude. (a)~Raw $\log _{10}(A_p)$ decreases systematically with range following the $R^{-4}$ propagation law (dashed line), mixing vessel-type signal with geometry. (b)~After correction, the range dependence is eliminated and vessel-type clusters separate in RCS space}{figure.caption.1}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {II-C}}Quantum-Classical Hybrid Neural Networks}{3}{subsection.2.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {III}Range-Invariant Feature Derivation}{3}{section.3}\protected@file@percent }
+\newlabel{sec:features}{{III}{3}{Range-Invariant Feature Derivation}{section.3}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {III-A}}From Raw Observables to RCS Features}{3}{subsection.3.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{\numberline {\mbox  {III-A}0a}Feature 1 — Log Peak RCS ($\log \hat  {\sigma }_p$):}{3}{paragraph.3.1.0.1}\protected@file@percent }
+\newlabel{eq:logpeak}{{4}{3}{Feature 1 — Log Peak RCS ($\log \hat {\sigma }_p$):}{equation.3.4}{}}
+\@writefile{toc}{\contentsline {paragraph}{\numberline {\mbox  {III-A}0b}Feature 2 — Log Total RCS ($\log \hat  {\sigma }_t$):}{3}{paragraph.3.1.0.2}\protected@file@percent }
+\newlabel{eq:logtotal}{{5}{3}{Feature 2 — Log Total RCS ($\log \hat {\sigma }_t$):}{equation.3.5}{}}
+\@writefile{toc}{\contentsline {paragraph}{\numberline {\mbox  {III-A}0c}Feature 3 — RCS Concentration Ratio ($\rho $):}{3}{paragraph.3.1.0.3}\protected@file@percent }
+\newlabel{eq:rcs_conc}{{6}{3}{Feature 3 — RCS Concentration Ratio ($\rho $):}{equation.3.6}{}}
+\@writefile{toc}{\contentsline {paragraph}{\numberline {\mbox  {III-A}0d}Feature 4 — Physical Aspect Ratio ($\xi $):}{3}{paragraph.3.1.0.4}\protected@file@percent }
+\newlabel{eq:aspect}{{7}{3}{Feature 4 — Physical Aspect Ratio ($\xi $):}{equation.3.7}{}}
+\@writefile{toc}{\contentsline {paragraph}{\numberline {\mbox  {III-A}0e}Feature 5 — Log Footprint Area ($\log A$):}{3}{paragraph.3.1.0.5}\protected@file@percent }
+\newlabel{eq:footprint}{{8}{3}{Feature 5 — Log Footprint Area ($\log A$):}{equation.3.8}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {III-B}}Comparison with Raw Features}{3}{subsection.3.2}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {I}{\ignorespaces Range-dependence of old (raw) and new (RCS-derived) features.}}{3}{table.caption.2}\protected@file@percent }
+\newlabel{tab:feature_comparison}{{I}{3}{Range-dependence of old (raw) and new (RCS-derived) features}{table.caption.2}{}}
+\citation{pennylane2018}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {III-C}}The Detection Selection Effect}{4}{subsection.3.3}\protected@file@percent }
+\newlabel{sec:selection}{{\mbox  {III-C}}{4}{The Detection Selection Effect}{subsection.3.3}{}}
+\newlabel{eq:detection_floor}{{9}{4}{The Detection Selection Effect}{equation.3.9}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {IV}Dataset and Experimental Setup}{4}{section.4}\protected@file@percent }
+\newlabel{sec:data}{{IV}{4}{Dataset and Experimental Setup}{section.4}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {IV-A}}Source Data}{4}{subsection.4.1}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {II}{\ignorespaces Range coverage by vessel type (number of 5~km bins with $\geq $50 samples). Types with $\geq $7 bins are included in training.}}{4}{table.caption.3}\protected@file@percent }
+\newlabel{tab:range_coverage}{{II}{4}{Range coverage by vessel type (number of 5~km bins with $\geq $50 samples). Types with $\geq $7 bins are included in training}{table.caption.3}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {IV-B}}Range-Stratified Balanced Sampling}{4}{subsection.4.2}\protected@file@percent }
+\newlabel{sec:stratified}{{\mbox  {IV-B}}{4}{Range-Stratified Balanced Sampling}{subsection.4.2}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {IV-C}}Model Architectures}{4}{subsection.4.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{\numberline {\mbox  {IV-C}0a}GBT.}{4}{paragraph.4.3.0.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{\numberline {\mbox  {IV-C}0b}XGBoost.}{4}{paragraph.4.3.0.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{\numberline {\mbox  {IV-C}0c}HQNN-5q.}{4}{paragraph.4.3.0.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{\numberline {\mbox  {IV-C}0d}HQNN-8q.}{4}{paragraph.4.3.0.4}\protected@file@percent }
+\citation{guo2017calibration}
+\citation{paper3qml}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {IV-D}}Evaluation Metrics}{5}{subsection.4.4}\protected@file@percent }
+\newlabel{sec:metrics}{{\mbox  {IV-D}}{5}{Evaluation Metrics}{subsection.4.4}{}}
+\@writefile{toc}{\contentsline {paragraph}{\numberline {\mbox  {IV-D}0a}Accuracy and Macro F1.}{5}{paragraph.4.4.0.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{\numberline {\mbox  {IV-D}0b}Size-Group Accuracy.}{5}{paragraph.4.4.0.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{\numberline {\mbox  {IV-D}0c}Expected Calibration Error (ECE).}{5}{paragraph.4.4.0.3}\protected@file@percent }
+\newlabel{eq:ece}{{10}{5}{Expected Calibration Error (ECE)}{equation.4.10}{}}
+\@writefile{toc}{\contentsline {paragraph}{\numberline {\mbox  {IV-D}0d}OOD Confidence.}{5}{paragraph.4.4.0.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {V}Results}{5}{section.5}\protected@file@percent }
+\newlabel{sec:results}{{V}{5}{Results}{section.5}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {V-A}}Type-Level Classification Accuracy}{5}{subsection.5.1}\protected@file@percent }
+\newlabel{sec:type_results}{{\mbox  {V-A}}{5}{Type-Level Classification Accuracy}{subsection.5.1}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {III}{\ignorespaces Classification performance on known vessel types (Types 30, 52, 70, 80). Point estimates from the held-out test set ($n=800$); 95\% bootstrap confidence intervals from $B=1{,}000$ resamples of the test set.}}{5}{table.caption.4}\protected@file@percent }
+\newlabel{tab:main_results}{{III}{5}{Classification performance on known vessel types (Types 30, 52, 70, 80). Point estimates from the held-out test set ($n=800$); 95\% bootstrap confidence intervals from $B=1{,}000$ resamples of the test set}{table.caption.4}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {2}{\ignorespaces Normalised confusion matrices on the held-out test set ($n=800$). (a)~GBT\_RCS; (b)~HQNN-8q\_RCS. Both models show strong separation for Fishing and Tug; the Cargo/Tanker boundary (bottom-right $2\times 2$ block) is the dominant source of misclassification for all models.}}{5}{figure.caption.5}\protected@file@percent }
+\newlabel{fig:confusion_rcs}{{2}{5}{Normalised confusion matrices on the held-out test set ($n=800$). (a)~GBT\_RCS; (b)~HQNN-8q\_RCS. Both models show strong separation for Fishing and Tug; the Cargo/Tanker boundary (bottom-right $2\times 2$ block) is the dominant source of misclassification for all models}{figure.caption.5}{}}
+\@writefile{toc}{\contentsline {paragraph}{\numberline {\mbox  {V-A}0a}Per-class performance (HQNN-8q).}{5}{paragraph.5.1.0.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {V-B}}Vessel Size-Group Accuracy}{5}{subsection.5.2}\protected@file@percent }
+\newlabel{sec:size_results}{{\mbox  {V-B}}{5}{Vessel Size-Group Accuracy}{subsection.5.2}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {IV}{\ignorespaces Size-group accuracy: Small $= \{30, 52\}$, Large $= \{70, 80\}$. Evaluated on the 3,200-sample known-class inference set.}}{5}{table.caption.6}\protected@file@percent }
+\newlabel{tab:size_results}{{IV}{5}{Size-group accuracy: Small $= \{30, 52\}$, Large $= \{70, 80\}$. Evaluated on the 3,200-sample known-class inference set}{table.caption.6}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {3}{\ignorespaces Calibration analysis. (a)~Reliability diagram: fraction of correct predictions vs. mean predicted confidence per bin. Perfect calibration follows the diagonal. HQNN-8q tracks the diagonal most closely. (b)~Expected Calibration Error (ECE) per model; lower is better. HQNN-8q achieves ECE\,$=0.0236$, a $3.6\times $ improvement over GBT (ECE\,$=0.0847$).}}{6}{figure.caption.7}\protected@file@percent }
+\newlabel{fig:reliability_rcs}{{3}{6}{Calibration analysis. (a)~Reliability diagram: fraction of correct predictions vs. mean predicted confidence per bin. Perfect calibration follows the diagonal. HQNN-8q tracks the diagonal most closely. (b)~Expected Calibration Error (ECE) per model; lower is better. HQNN-8q achieves ECE\,$=0.0236$, a $3.6\times $ improvement over GBT (ECE\,$=0.0847$)}{figure.caption.7}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {V-C}}Calibration}{6}{subsection.5.3}\protected@file@percent }
+\newlabel{sec:calibration}{{\mbox  {V-C}}{6}{Calibration}{subsection.5.3}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {V-D}}Out-of-Distribution Vessel Types}{6}{subsection.5.4}\protected@file@percent }
+\newlabel{sec:ood}{{\mbox  {V-D}}{6}{Out-of-Distribution Vessel Types}{subsection.5.4}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {4}{\ignorespaces Mean maximum predicted confidence for three vessel types absent from training (Dredging, Passenger, Other). Lower values indicate better open-world uncertainty awareness. The 50\% chance level (dotted line) represents uninformative prediction. HQNN-8q consistently produces the lowest overconfidence, most notably on Type~90 (Other) where it is 22~pp lower than GBT.}}{6}{figure.caption.9}\protected@file@percent }
+\newlabel{fig:ood_confidence}{{4}{6}{Mean maximum predicted confidence for three vessel types absent from training (Dredging, Passenger, Other). Lower values indicate better open-world uncertainty awareness. The 50\% chance level (dotted line) represents uninformative prediction. HQNN-8q consistently produces the lowest overconfidence, most notably on Type~90 (Other) where it is 22~pp lower than GBT}{figure.caption.9}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {V}{\ignorespaces Model confidence on unseen vessel types (lower $=$ less overconfident). Low-conf rate: fraction of predictions with confidence $< 50\%$. Chance level for 4-class model: 25\% confidence.}}{6}{table.caption.8}\protected@file@percent }
+\newlabel{tab:ood_results}{{V}{6}{Model confidence on unseen vessel types (lower $=$ less overconfident). Low-conf rate: fraction of predictions with confidence $< 50\%$. Chance level for 4-class model: 25\% confidence}{table.caption.8}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {VI}Discussion}{6}{section.6}\protected@file@percent }
+\newlabel{sec:discussion}{{VI}{6}{Discussion}{section.6}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {VI-A}}Physical Interpretation of Feature Importance}{6}{subsection.6.1}\protected@file@percent }
+\citation{knott1993rcs}
+\citation{ward2013seaclutter}
+\@writefile{lof}{\contentsline {figure}{\numberline {5}{\ignorespaces GBT impurity-based feature importance for the RCS feature set. Aspect ratio and log footprint area dominate, reflecting that hull geometry is the primary physical discriminant. The two amplitude features ($\log \hat  {\sigma }_p$, $\log \hat  {\sigma }_t$) contribute approximately equally.}}{7}{figure.caption.10}\protected@file@percent }
+\newlabel{fig:feat_imp_rcs}{{5}{7}{GBT impurity-based feature importance for the RCS feature set. Aspect ratio and log footprint area dominate, reflecting that hull geometry is the primary physical discriminant. The two amplitude features ($\log \hat {\sigma }_p$, $\log \hat {\sigma }_t$) contribute approximately equally}{figure.caption.10}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {6}{\ignorespaces (a)~ECE comparison between raw amplitude features and RCS features: the $R^4$ correction reduces calibration error for all four models. (b)~Size-group accuracy (Small: Fishing/Tug; Large: Cargo/Tanker): all models exceed 94.9\% when evaluated at the coarser two-class level, confirming that physically grounded features reliably encode vessel scale.}}{7}{figure.caption.11}\protected@file@percent }
+\newlabel{fig:ablation_size}{{6}{7}{(a)~ECE comparison between raw amplitude features and RCS features: the $R^4$ correction reduces calibration error for all four models. (b)~Size-group accuracy (Small: Fishing/Tug; Large: Cargo/Tanker): all models exceed 94.9\% when evaluated at the coarser two-class level, confirming that physically grounded features reliably encode vessel scale}{figure.caption.11}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {VI-B}}The Cargo-Tanker Boundary on RCS Features}{7}{subsection.6.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {VI-C}}Operational Implications of Calibration Advantage}{7}{subsection.6.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {VI-D}}Synthetic Reproducibility Verification}{7}{subsection.6.4}\protected@file@percent }
+\newlabel{sec:synthetic}{{\mbox  {VI-D}}{7}{Synthetic Reproducibility Verification}{subsection.6.4}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {VI-E}}Limitations and Future Work}{8}{subsection.6.5}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{\numberline {\mbox  {VI-E}0a}Single-scan detection.}{8}{paragraph.6.5.0.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{\numberline {\mbox  {VI-E}0b}Fixed radar geometry.}{8}{paragraph.6.5.0.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{\numberline {\mbox  {VI-E}0c}Aspect angle ambiguity.}{8}{paragraph.6.5.0.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{\numberline {\mbox  {VI-E}0d}Sea state and clutter.}{8}{paragraph.6.5.0.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {VII}Conclusion}{8}{section.7}\protected@file@percent }
+\newlabel{sec:conclusion}{{VII}{8}{Conclusion}{section.7}{}}
+\bibstyle{IEEEtran}
+\bibcite{skolnik2001}{1}
+\bibcite{knott1993rcs}{2}
+\bibcite{ward2013seaclutter}{3}
+\bibcite{haykin1991clutter}{4}
+\bibcite{shepherd2022vessel}{5}
+\bibcite{dcouto2011maritime}{6}
+\bibcite{nguyen2019vessel}{7}
+\bibcite{chen2006microdoppler}{8}
+\bibcite{guo2017calibration}{9}
+\bibcite{pennylane2018}{10}
+\bibcite{pytorch2019}{11}
+\bibcite{jones2020adjoint}{12}
+\bibcite{mcclean2018barren}{13}
+\bibcite{havlicek2019supervised}{14}
+\bibcite{schuld2020circuit}{15}
+\bibcite{paper1features}{16}
+\bibcite{paper2classical}{17}
+\bibcite{paper3qml}{18}
+\bibcite{paper4cargotanker}{19}
+\bibcite{zhao2025norm}{20}
+\bibcite{cai2021mmwave}{21}
+\bibcite{rahman2023mmwave}{22}
+\bibcite{cope2021tracking}{23}
+\bibcite{tanner2025qkm}{24}
+\bibcite{barretta2025hqnn}{25}
+\@writefile{toc}{\contentsline {section}{References}{9}{section*.15}\protected@file@percent }
+\gdef \@abspage@last{9}

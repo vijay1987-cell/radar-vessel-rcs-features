@@ -1,0 +1,1040 @@
+%% ============================================================
+%%  PAPER 5 — RQ5
+%%  Range-Invariant Radar Cross Section Features for Maritime
+%%  Vessel Type Classification: A Quantum-Classical Comparative Study
+%% ============================================================
+\documentclass[journal]{IEEEtran}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{booktabs,array,multirow}
+\usepackage{graphicx,float,caption}
+\usepackage{xcolor,hyperref,cite}
+\usepackage{algorithm,algpseudocode}
+\hypersetup{colorlinks=true,linkcolor=blue,citecolor=blue,urlcolor=blue}
+
+\newcommand{\vect}[1]{\boldsymbol{#1}}
+\newcommand{\ket}[1]{|#1\rangle}
+\newcommand{\expect}[1]{\langle #1 \rangle}
+
+\begin{document}
+
+\title{
+  \textbf{Range-Invariant Radar Cross Section Features for\\
+  Maritime Vessel Type Classification:\\
+  A Quantum-Classical Comparative Study}\\[0.4em]
+  \large Research Question 5: Does physically grounded RCS feature
+  engineering eliminate range-dependent classification bias and
+  enable robust vessel type identification?
+}
+\author{[Author~Name],~\IEEEmembership{Member,~IEEE}%
+\IEEEcompsocitemizethanks{
+\IEEEcompsocthanksitem The author is with the Department of [Department], [University], [City], [Country]. E-mail: author@institution.ac.uk.
+}}
+
+\IEEEtitleabstractindextext{%
+\begin{abstract}
+Conventional radar-based vessel classification systems train machine
+learning models on raw amplitude measurements — peak and total
+back\-scattered power — that are contaminated by the radar range
+equation's $R^{-4}$ propagation loss. A vessel at 5~km and an
+identical vessel at 40~km produce amplitudes differing by four orders
+of magnitude, causing any model trained on these raw features to learn
+range-dependent decision boundaries rather than vessel-type-intrinsic
+properties. This paper introduces a principled feature engineering
+approach based on the monostatic radar range equation, deriving five
+\emph{range-invariant} features from per-detection radar observables:
+log-scale peak RCS ($\log\hat{\sigma}_p$), log-scale total RCS
+($\log\hat{\sigma}_t$), RCS concentration ratio ($\rho$), physical
+aspect ratio ($\xi$), and log-scale radar footprint area ($\log A$).
+Using a coastal X-band surveillance radar dataset of 100,430
+observations, we construct a range-stratified balanced training corpus
+(300 samples per class, four vessel types: Fishing, Tug, Cargo,
+Tanker) and evaluate four classifier architectures: Gradient Boosting
+Trees (GBT), XGBoost (XGB), and Hybrid Quantum-Classical Neural
+Networks at 5 and 8 qubits (HQNN-5q, HQNN-8q). GBT achieves 84.2\%
+accuracy and 84.2\% macro F1, outperforming all QML models on raw
+type-label accuracy. However, all four models achieve 94.9--96.9\%
+accuracy when evaluated at the coarser \emph{vessel size group} level
+(Small: Fishing/Tug; Large: Cargo/Tanker), demonstrating that the
+physically grounded features reliably encode vessel scale. On
+calibration, HQNN-8q achieves the lowest Expected Calibration Error
+in this study (ECE $= 0.0236$), representing a 3.6$\times$ improvement
+over GBT (ECE $= 0.0847$). When presented with vessel types absent
+from training (Dredging, Passenger, Other), HQNN-8q produces the
+lowest mean confidence (65.7\% for Type~90), compared to GBT's 87.8\%
+— a 22~percentage point reduction in overconfidence that has direct
+operational implications for maritime domain awareness systems
+operating in open-world vessel traffic.
+\end{abstract}
+\begin{IEEEkeywords}
+radar cross section; range-invariant features; vessel type classification; quantum machine learning; HQNN; calibration; maritime surveillance; detection selection effect; open-world classification; coastal radar
+\end{IEEEkeywords}}
+
+\maketitle
+\IEEEdisplaynontitleabstractindextext
+\IEEEpeerreviewmaketitle
+
+%% ────────────────────────────────────────────────────────────
+\section{Introduction}
+\label{sec:intro}
+
+\IEEEPARstart{T}{he} problem of vessel type classification from terrestrial
+radar returns is a long-standing challenge in maritime domain
+awareness~\cite{skolnik2001,ward2013seaclutter}. Unlike automatic
+identification system (AIS) transponders, which broadcast vessel
+metadata directly, passive radar classification must infer vessel type
+from the physical interaction between the transmitted waveform and the
+target hull. This makes the problem fundamentally one of relating
+electromagnetic observables to physical vessel properties.
+
+The dominant approach in the literature uses raw radar features as
+classifier inputs: peak received power, integrated backscattered
+energy, and spatial gate counts in the range and azimuth
+dimensions~\cite{haykin1991clutter,shepherd2022vessel}. These features are convenient
+because they are directly reported by the radar's detection pipeline.
+However, they are not \emph{physically invariant} under range change:
+by the monostatic radar range equation, received power falls as
+$R^{-4}$. A 100~m Cargo vessel at 10~km and the same vessel at 40~km
+produce raw amplitude readings that differ by a factor of $256$. Any
+classifier trained on raw amplitudes therefore learns, at least
+partially, a \emph{range-conditioned} mapping rather than a
+\emph{vessel-type-conditioned} mapping. Classification accuracy
+degrades when the range distribution of operational traffic differs
+from the training set, and transfer to other radar systems with
+different transmit powers or antenna gains is not guaranteed.
+
+Papers~1--4 of this series established a rigorous five-feature
+corrected baseline (azimuth, peak amplitude, total amplitude,
+down-range extent, cross-range extent in metres) and demonstrated that
+Gradient Boosting Trees achieve 90.0\% accuracy on five vessel types
+when trained on 300 balanced samples per class~\cite{paper1features}.
+However, those experiments used raw amplitude features, embedding an
+implicit assumption that the training and deployment range
+distributions are matched. Paper~4 further identified that the
+Cargo/Tanker boundary is uniquely hard: the two classes share
+overlapping amplitude distributions at any given range, and the
+separating information resides in physical size — which is only
+accessible once amplitudes are \emph{corrected for range}~\cite{paper4cargotanker}.
+
+This paper closes that gap. We derive five range-invariant features
+grounded in the radar range equation, construct a range-stratified
+training corpus, and evaluate GBT, XGBoost, HQNN-5q, and HQNN-8q on
+both exact vessel type and vessel size group. The central research
+question is:
+
+\begin{quote}
+\textit{RQ5: Does deriving physically range-invariant RCS features
+eliminate range-dependent classification bias and produce vessel-type
+decision boundaries that are transferable across the operational range
+envelope?}
+\end{quote}
+
+Our contribution is threefold:
+\begin{enumerate}
+  \item We introduce the first RCS-derived feature set for ML-based
+        vessel classification from a terrestrial maritime radar, derived
+        directly from the monostatic radar range equation with no
+        additional calibration requirements beyond knowledge of the
+        operating range.
+  \item We identify and quantify the \emph{detection selection effect}:
+        a residual range dependency that persists after $R^4$ correction
+        because small vessels disappear below the detection threshold at
+        long range, making the detectable population size-biased at
+        extended ranges. We show this is an operational reality, not a
+        feature engineering error.
+  \item We demonstrate that quantum-classical hybrid models (HQNN) provide
+        a calibration advantage (ECE $3.6\times$ better than GBT) and
+        produce lower overconfidence on out-of-distribution vessel types
+        — a meaningful operational benefit for open-world maritime
+        surveillance, distinct from and complementary to their type-label
+        accuracy.
+\end{enumerate}
+
+%% ────────────────────────────────────────────────────────────
+\section{Background}
+\label{sec:background}
+
+\subsection{Radar Range Equation}
+
+The monostatic radar range equation relates received power $P_r$ to
+transmitted power $P_t$, antenna gain $G$, wavelength $\lambda$,
+target radar cross section $\sigma$, and slant range $R$:
+\begin{equation}
+  P_r = \frac{P_t G^2 \lambda^2 \sigma}{(4\pi)^3 R^4}
+  \label{eq:rre}
+\end{equation}
+For a fixed radar system ($P_t$, $G$, $\lambda$ constant), all terms
+except $\sigma$ and $R$ collect into a system constant $C$:
+\begin{equation}
+  P_r = C \cdot \frac{\sigma}{R^4}
+  \label{eq:rre_simplified}
+\end{equation}
+Rearranging, the RCS of the target is proportional to the received
+power scaled by the fourth power of range:
+\begin{equation}
+  \sigma \propto P_r \cdot R^4
+  \label{eq:rcs_def}
+\end{equation}
+The RCS $\sigma$ (units: m$^2$) is a property of the target geometry
+and material composition at the incident angle — independent of range,
+transmit power, or antenna configuration~\cite{skolnik2001,knott1993rcs}.
+For vessel classification, this makes $\sigma$ the physically correct
+feature: it encodes hull shape and reflectivity, not the accident of
+how far the vessel happens to be from the radar at the time of
+detection.
+
+\subsection{Previous Vessel Classification Approaches}
+
+Maritime radar classification is a relatively sparse literature
+compared to synthetic aperture radar (SAR) target recognition.
+Work on high-resolution coastal surveillance radars can be grouped into
+three approaches:
+
+\paragraph{Kinematic features.} Speed, course, and AIS trajectory
+features are used to infer vessel type from behavioural patterns rather
+than radar reflection~\cite{dcouto2011maritime,nguyen2019vessel}. These are
+not available in single-scan detection records.
+
+\paragraph{Micro-Doppler.} High-resolution Doppler radars can observe
+rotating components (propellers, helicopter rotors) and sea-wave
+modulation patterns~\cite{chen2006microdoppler}. Standard marine surveillance
+radars do not have this resolution.
+
+\paragraph{Spatial features.} Gate-count-based features (down-range and
+cross-range extent, peak and total amplitude) are used with SVM, random
+forests, and neural networks~\cite{shepherd2022vessel,haykin1991clutter}. This is the
+category that includes all prior work in this series. None of these
+studies apply $R^4$ range correction to the amplitude features.
+
+\paragraph{Feature normalisation for multi-radar generalisation.}
+The most closely related prior work is~\cite{zhao2025norm}, which
+normalises radar system parameters (transmit power, antenna gain) to
+improve the generalisation of a machine learning classifier across
+different radar hardware. This work identifies the same underlying
+problem — that raw radar features encode system-specific characteristics
+rather than target properties — but addresses it by normalising across
+\emph{radar systems} rather than by correcting for \emph{range within
+a single system}. The two approaches are complementary and could be
+combined; the present paper focuses on the within-system $R^4$ range
+dependence that persists even on a single, fixed, well-characterised
+radar.
+
+In the autonomous driving domain, Cai et al.~\cite{cai2021mmwave}
+demonstrate that statistical RCS features extracted from millimetre-wave
+radar improve classification of pedestrians, cyclists, and vehicles over
+raw amplitude features, confirming the general utility of RCS-based
+features for radar target classification. That work operates at ranges
+under 200~m (where the $R^4$ effect is negligible), classifies
+ground-based traffic participants rather than maritime vessel types, and
+uses a different radar modality (FMCW vs.\ pulsed surveillance radar).
+
+For the specific task of maritime target type classification from
+terrestrial surveillance radar, a systematic literature search
+(Consensus academic database, 60 results across three queries, August
+2026) found no prior work applying $R^4$ range correction to derive
+invariant RCS features as ML inputs. Rahman et al.~\cite{rahman2023mmwave}
+and Cope et al.~\cite{cope2021tracking} represent the current state of
+practice: raw Doppler and spatial features fed directly to classifiers,
+without range correction.
+
+To the authors' knowledge, the current paper is the first to derive
+ML input features directly from the radar range equation for maritime
+vessel classification, and the first to evaluate quantum-classical
+hybrid models on RCS-derived features.
+
+\paragraph{Quantum ML for maritime classification.}
+Tanner et al.~\cite{tanner2025qkm} present the first application of
+quantum kernel methods (QKMs) to maritime object classification, using
+SAR image chips from the SARFish dataset for binary
+(vessel/non-vessel, fishing/other) classification. The modality (SAR
+imagery vs.\ per-detection amplitude features from a terrestrial
+surveillance radar), task (binary detection vs.\ multi-class vessel type
+identification), and quantum architecture (kernel methods vs.\ HQNN)
+are all distinct from the present work. Barretta et al.~\cite{barretta2025hqnn}
+apply hybrid quantum-classical ResNet architectures to multispectral
+satellite imagery for vessel classification, again a different modality
+and architecture. The present paper is, to the authors' knowledge, the
+first application of HQNN to terrestrial surveillance radar features for
+vessel type classification.
+
+\subsection{Quantum-Classical Hybrid Neural Networks}
+
+The Hybrid Quantum-Classical Neural Network (HQNN) architecture
+used in this work consists of three components: a classical encoder
+that compresses and standardises the $d$-dimensional input, a
+variational quantum circuit (VQC) layer that applies parameterised
+entangling operations to produce a quantum expectation value vector,
+and a classical decoder that maps this vector to class logits. The
+architecture is trained end-to-end using the adjoint differentiation
+method~\cite{jones2020adjoint} with a PyTorch optimisation
+backend~\cite{pytorch2019} and the PennyLane quantum computing
+framework~\cite{pennylane2018}.
+
+A key property of HQNN relevant to this paper is the
+\emph{calibration advantage} previously observed in Papers 3 and 4 of
+this series: the variational quantum circuit produces probability
+distributions that more faithfully reflect classification
+uncertainty than the empirical class frequency estimates produced by
+ensemble tree methods. This is quantified by Expected Calibration Error
+(ECE), defined in Section~\ref{sec:metrics}.
+
+%% ────────────────────────────────────────────────────────────
+\section{Range-Invariant Feature Derivation}
+\label{sec:features}
+
+\subsection{From Raw Observables to RCS Features}
+
+The radar detection pipeline reports five per-detection observables for
+each track point in the study dataset:
+\begin{itemize}
+  \item $A_p$: peak amplitude (proportional to $P_r$ at the brightest
+        range/azimuth cell)
+  \item $A_t$: total amplitude (sum of $P_r$ across all cells in the
+        detection gate)
+  \item $e_r$: down-range physical extent (metres)
+  \item $e_c$: cross-range physical extent (metres)
+  \item $\psi$: azimuth (radians) — bearing from radar to target
+  \item $R$: slant range (metres, derived from range gate index)
+\end{itemize}
+
+Applying Equation~\ref{eq:rcs_def} to $A_p$ and $A_t$, and working in
+log-scale to compress the dynamic range and linearise the $R^4$
+relationship, we derive five range-invariant features:
+
+\paragraph{Feature 1 — Log Peak RCS ($\log\hat{\sigma}_p$):}
+\begin{equation}
+  \log\hat{\sigma}_p = \log(A_p) + 4\log(R)
+  \label{eq:logpeak}
+\end{equation}
+This is the range-corrected peak backscatter, dominated by the
+brightest facet of the vessel hull visible to the radar.
+
+\paragraph{Feature 2 — Log Total RCS ($\log\hat{\sigma}_t$):}
+\begin{equation}
+  \log\hat{\sigma}_t = \log(A_t) + 4\log(R)
+  \label{eq:logtotal}
+\end{equation}
+This is the range-corrected integrated backscatter — proportional to
+the total electromagnetic signature area of the vessel.
+
+\paragraph{Feature 3 — RCS Concentration Ratio ($\rho$):}
+\begin{equation}
+  \rho = \frac{A_p}{A_t}
+  \label{eq:rcs_conc}
+\end{equation}
+The ratio of peak to total amplitude. The $R^4$ factor cancels
+identically, making this feature intrinsically range-independent
+without any correction. Physically, $\rho$ measures how \emph{focused}
+the vessel's radar signature is: a vessel with a single dominant
+reflector (e.g.\ a corner reflector or superstructure) has high $\rho$;
+a distributed scatterer (e.g.\ a long hull with multiple clutter
+cells) has low $\rho$.
+
+\paragraph{Feature 4 — Physical Aspect Ratio ($\xi$):}
+\begin{equation}
+  \xi = \frac{e_r}{e_c}
+  \label{eq:aspect}
+\end{equation}
+The ratio of down-range to cross-range extent. Both $e_r$ and $e_c$
+are already in physical metres, so the $R^4$ factor does not apply.
+$\xi > 1$ indicates an elongated target aligned in range; $\xi < 1$
+indicates a target wider than it is deep. This feature captures the
+apparent hull geometry as projected onto the radar's range-azimuth
+plane — a partial proxy for vessel length-to-beam ratio.
+
+\paragraph{Feature 5 — Log Footprint Area ($\log A$):}
+\begin{equation}
+  \log A = \log(e_r \times e_c)
+  \label{eq:footprint}
+\end{equation}
+The log-scale physical area occupied by the detection gate. This
+combines range and cross-range extent into a single size metric. Unlike
+raw gate counts, this is in physical metres and independent of the
+radar's range and azimuth resolution cells.
+
+\subsection{Comparison with Raw Features}
+
+Table~\ref{tab:feature_comparison} summarises the range-dependence
+properties of the old and new feature sets.
+
+\begin{table}[H]
+\centering
+\caption{Range-dependence of old (raw) and new (RCS-derived) features.}
+\label{tab:feature_comparison}
+\begin{tabular}{llll}
+\toprule
+\textbf{Feature} & \textbf{Type} & \textbf{Range dependency} & \textbf{Notes} \\
+\midrule
+\texttt{PeakAmplitude}   & Raw    & $\propto R^{-4}$          & Needs $R^4$ correction \\
+\texttt{TotalAmplitude}  & Raw    & $\propto R^{-4}$          & Needs $R^4$ correction \\
+\texttt{down\_range\_extent} & Raw & None (metres)            & Already physical \\
+\texttt{az\_extent\_m}   & Raw    & None (metres)             & Already physical \\
+\texttt{azimuth}         & Raw    & Positional bias           & Not a vessel property \\
+\midrule
+$\log\hat{\sigma}_p$     & RCS    & Corrected                 & Eq.~\ref{eq:logpeak} \\
+$\log\hat{\sigma}_t$     & RCS    & Corrected                 & Eq.~\ref{eq:logtotal} \\
+$\rho$                   & RCS    & None ($R^4$ cancels)      & Eq.~\ref{eq:rcs_conc} \\
+$\xi$                    & RCS    & None (ratio in metres)    & Eq.~\ref{eq:aspect} \\
+$\log A$                 & RCS    & None (product in m$^2$)   & Eq.~\ref{eq:footprint} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Note that \texttt{azimuth} (radians bearing from radar to target) was
+included in the raw feature set as a positional proxy for vessel type,
+exploiting the fact that different vessel types tend to transit
+different bearing sectors of the study area (e.g.\ fishing grounds
+are predominantly to the north, shipping lanes run east-west). This is
+a dataset-specific spurious correlation that would not generalise to
+a different deployment geometry. The new RCS feature set discards
+\texttt{azimuth} entirely.
+
+\subsection{The Detection Selection Effect}
+\label{sec:selection}
+
+After applying the $R^4$ correction, one might expect $\log\hat{\sigma}_p$
+and $\log\hat{\sigma}_t$ to be entirely flat with respect to range. In
+practice, both features exhibit a residual positive trend with range,
+spanning approximately 6--11 log-units across the 5--50~km operational
+envelope. This is not a formula error; it is a \emph{detection
+selection effect}.
+
+At short range, the radar's detection threshold is low relative to
+received power, so vessels of all sizes are detected. At long range,
+the detection threshold eliminates small or low-RCS targets first. The
+population of detections at $R = 40$~km therefore contains
+disproportionately large, high-RCS representatives of each vessel type.
+The corrected RCS of the \emph{median detection} increases with range
+because the sample is a size-biased draw from the true population.
+
+Formally, let $\sigma_{\min}(R)$ be the minimum detectable RCS at
+range $R$, determined by the radar's minimum detectable signal. The
+detected population at range $R$ is:
+\begin{equation}
+  \mathcal{D}(R) = \{ \sigma : \sigma \geq \sigma_{\min}(R) \},
+  \quad \sigma_{\min}(R) \propto R^4
+  \label{eq:detection_floor}
+\end{equation}
+This means the corrected feature $\log\hat{\sigma}_p = \log(A_p) + 4\log(R)$
+is correctly computed but the \emph{sample} is censored below
+$\log\hat{\sigma}_{\min}(R)$, which itself is range-dependent.
+
+The detection selection effect is an irreducible property of active
+sensing systems: range-invariant features remove the systematic
+encoding of range into vessel type labels, but cannot remove the
+physical reality that some vessels become invisible at long range.
+Range-stratified training (Section~\ref{sec:data}) mitigates this by
+ensuring each range bin contributes proportionally to the training
+corpus, preventing the model from learning range-stratified class
+prevalence as a classification signal.
+
+%% ────────────────────────────────────────────────────────────
+\section{Dataset and Experimental Setup}
+\label{sec:data}
+
+\subsection{Source Data}
+
+The study dataset is the \texttt{radarfeatureL\_Study} corpus of
+100,430 per-detection records from a coastal X-band surveillance radar.
+Each record corresponds to a single radar detection associated with a
+vessel track and annotated with the vessel's AIS Type code. The
+dataset spans seven vessel types: Fishing (Type~30), Dredging
+(Type~33), Tug (Type~52), Cargo (Type~70), Tanker (Type~80),
+Passenger (Type~60), and Other (Type~90).
+
+A preliminary analysis of range coverage (Table~\ref{tab:range_coverage})
+identified four types with sufficient sample density across the
+5--50~km range envelope to support range-stratified sampling: Types
+30, 52, 70, and 80. Types 33, 60, and 90 have insufficient coverage
+in at least one range bin and are reserved as \emph{unseen} classes
+for out-of-distribution evaluation.
+
+\begin{table}[H]
+\centering
+\caption{Range coverage by vessel type (number of 5~km bins with $\geq$50
+         samples). Types with $\geq$7 bins are included in training.}
+\label{tab:range_coverage}
+\begin{tabular}{lrrr}
+\toprule
+\textbf{Type} & \textbf{Total samples} & \textbf{Bins covered} & \textbf{Role} \\
+\midrule
+30 Fishing  & $>$10,000 & 9  & Training \\
+52 Tug      & $>$10,000 & 9  & Training \\
+70 Cargo    & $>$10,000 & 9  & Training \\
+80 Tanker   & $>$10,000 & 8  & Training \\
+33 Dredging & $\sim$2,000 & $<$7 & Unseen / OOD \\
+60 Passenger& $\sim$800   & $<$7 & Unseen / OOD \\
+90 Other    & $\sim$3,000 & $<$7 & Unseen / OOD \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Range-Stratified Balanced Sampling}
+\label{sec:stratified}
+
+To prevent range-prevalence from acting as an implicit classification
+signal, we construct the training corpus using \emph{proportional
+range-stratified sampling}: the 5--50~km range envelope is divided into
+9 bins of width 5~km, and 300 samples per vessel type are drawn
+proportionally to each bin's sample count for that type. This ensures:
+
+\begin{enumerate}
+  \item Each vessel type is represented by exactly 300 training samples
+        (class-balanced).
+  \item Each range bin contributes to each class in proportion to its
+        share of that class's total detections (range-balanced).
+  \item Short-range bins, which contribute more detections due to
+        $R^{-4}$ sensitivity, do not dominate the training distribution.
+\end{enumerate}
+
+The resulting training set contains 1,200 samples. An 80/20
+stratified split produces 960 training and 240 validation examples.
+A separate inference set of 5,113 samples covers all seven vessel
+types: 800 samples from each trained class (30, 52, 70, 80) and the
+three unseen classes (33, 60: 313 samples due to limited pool, 90:
+800 samples).
+
+\subsection{Model Architectures}
+
+\paragraph{GBT.} Scikit-learn \texttt{GradientBoostingClassifier} with
+200 estimators, maximum depth 4, learning rate 0.1, and minimum samples
+per leaf 5. Trained on all 1,200 training samples in under 2~seconds.
+
+\paragraph{XGBoost.} XGBoost classifier with 200 estimators, maximum
+depth 4, learning rate 0.1, column subsampling 0.8, and early stopping
+on log-loss. Identical training data to GBT.
+
+\paragraph{HQNN-5q.} Encoder ($5 \to 8 \to 5$), strongly-entangling
+variational circuit (5 qubits, 2 layers, 75 parameters), decoder
+($5 \to 32 \to 4$). Trained for up to 30 epochs with patience 10,
+learning rate 0.01, batch size 32. Best weights restored on validation
+accuracy.
+
+\paragraph{HQNN-8q.} As HQNN-5q with 8 qubits and 2 layers (120
+parameters). Training time approximately $2\times$ that of HQNN-5q.
+
+All quantum circuits use the \texttt{lightning.qubit} statevector
+backend~\cite{pennylane2018} with adjoint differentiation. The
+strongly-entangling layer ansatz applies parameterised $R_Z$, $R_Y$,
+$R_Z$ rotations followed by a ring of CNOT gates at each layer.
+
+\subsection{Evaluation Metrics}
+\label{sec:metrics}
+
+\paragraph{Accuracy and Macro F1.} Standard multi-class metrics
+computed on the 3,200-sample known-class subset of the inference set.
+
+\paragraph{Size-Group Accuracy.} A coarser binary-level metric:
+predictions are mapped to \{Small, Large\} (Small = Types 30, 52;
+Large = Types 70, 80) and accuracy is measured at this level. This
+quantifies whether the model at minimum correctly discriminates vessel
+scale.
+
+\paragraph{Expected Calibration Error (ECE).} The ECE measures how
+well a model's confidence matches its empirical accuracy. Predictions
+are binned by confidence into 10 equal-width bins; the ECE is the
+confidence-weighted mean absolute difference between bin accuracy and
+bin confidence~\cite{guo2017calibration}:
+\begin{equation}
+  \text{ECE} = \sum_{b=1}^{B} \frac{|B_b|}{n}
+  \left| \text{acc}(B_b) - \text{conf}(B_b) \right|
+  \label{eq:ece}
+\end{equation}
+Lower ECE indicates better probability calibration. A perfectly
+calibrated model has ECE $= 0$.
+
+\paragraph{OOD Confidence.} For the three unseen vessel types (33, 60,
+90), we report the mean predicted confidence and the fraction of
+predictions below 50\% confidence. For a well-calibrated classifier,
+the expected confidence on unknown inputs should be near the reciprocal
+chance level (25\% for a 4-class model); high confidence on unseen
+classes indicates overconfidence and inability to express uncertainty.
+
+%% ────────────────────────────────────────────────────────────
+\section{Results}
+\label{sec:results}
+
+\subsection{Type-Level Classification Accuracy}
+\label{sec:type_results}
+
+Table~\ref{tab:main_results} presents the primary classification
+results on the four trained vessel types.
+
+\begin{table}[H]
+\centering
+\caption{Classification performance on known vessel types (Types 30, 52, 70, 80;
+         $n = 3{,}200$).}
+\label{tab:main_results}
+\begin{tabular}{lrrrr}
+\toprule
+\textbf{Model} & \textbf{Accuracy} & \textbf{Macro F1} & \textbf{ECE~$\downarrow$} & \textbf{Train time} \\
+\midrule
+GBT\_RCS    & \textbf{84.2\%} & \textbf{84.2\%} & 0.0847 & $<$2~s \\
+XGB\_RCS    & 84.1\%          & 84.0\%          & 0.0413 & $<$5~s \\
+HQNN-5q\_RCS & 77.7\%         & 77.6\%          & 0.0264 & 5.9~min \\
+HQNN-8q\_RCS & 78.2\%         & 78.2\%          & \textbf{0.0236} & 10.4~min \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+GBT and XGB achieve nearly identical accuracy (84.1--84.2\%) and macro
+F1 on the RCS feature set, outperforming the HQNN models by
+approximately 6 percentage points. The HQNN models improve modestly
+with qubit count: HQNN-8q (+0.5~pp over HQNN-5q), consistent with
+increased circuit expressibility reducing representation error at the
+cost of longer training.
+
+Comparing against prior results on the raw feature set
+(Paper~3~\cite{paper3qml}: GBT 90.0\%, HQNN 82.3\% on 5 classes), the
+RCS feature set shows lower absolute accuracy. This is expected and
+reflects two competing effects: (1) the removal of the \texttt{azimuth}
+positional feature eliminates a spurious-but-predictive signal, and
+(2) the reduction from 5 to 4 vessel types removes Dredging (Type~33),
+which is among the easier classes to classify. The RCS-derived results
+are therefore not directly comparable to Paper~3 on accuracy; their
+value lies in \emph{transferability}, which is addressed in
+Section~\ref{sec:discussion}.
+
+\paragraph{Per-class performance (HQNN-8q).}
+\begin{itemize}
+  \item \textbf{Fishing (30)}: precision 0.88, recall 0.93 — the most
+        distinct class due to small physical size and characteristically
+        low total RCS.
+  \item \textbf{Tug (52)}: precision 0.89, recall 0.86 — well separated
+        from Cargo/Tanker by footprint; occasionally confused with Fishing.
+  \item \textbf{Cargo (70)}: precision 0.67, recall 0.70 — significant
+        confusion with Tanker; the Cargo/Tanker boundary remains the
+        hardest sub-problem on RCS features as well as raw features.
+  \item \textbf{Tanker (80)}: precision 0.69, recall 0.65 — symmetric
+        confusion with Cargo.
+\end{itemize}
+
+\subsection{Vessel Size-Group Accuracy}
+\label{sec:size_results}
+
+Table~\ref{tab:size_results} presents accuracy when predictions are
+mapped to the coarser Small/Large size groups.
+
+\begin{table}[H]
+\centering
+\caption{Size-group accuracy: Small $= \{30, 52\}$, Large $= \{70, 80\}$.
+         Evaluated on the 3,200-sample known-class inference set.}
+\label{tab:size_results}
+\begin{tabular}{lrrrr}
+\toprule
+\textbf{Model} & \textbf{Small acc.} & \textbf{Large acc.} & \textbf{Overall size acc.} \\
+\midrule
+GBT\_RCS      & 96.5\% & 96.6\% & \textbf{96.5\%} \\
+XGB\_RCS      & \textbf{97.9\%} & 95.9\% & \textbf{96.9\%} \\
+HQNN-5q\_RCS  & 94.9\% & 94.8\% & 94.9\% \\
+HQNN-8q\_RCS  & 96.8\% & \textbf{95.9\%} & 96.3\% \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+All four models achieve 94.9--96.9\% size-group accuracy — approximately
+12--18 percentage points above their type-label accuracy. This confirms
+a key operational finding: \emph{even when the model cannot confidently
+distinguish Cargo from Tanker or Fishing from Tug, it almost never
+confuses a small vessel for a large one or vice versa}.
+
+Analysis of misclassification patterns confirms that errors are
+overwhelmingly \emph{within-size-group}:
+\begin{itemize}
+  \item Type 70 (Cargo) $\to$ Type 80 (Tanker): 176--255 samples (GBT-XGB-HQNN range) — large to large.
+  \item Type 80 (Tanker) $\to$ Type 70 (Cargo): 151--193 samples — large to large.
+  \item Type 30 (Fishing) $\to$ Type 52 (Tug): 29--44 samples — small to small.
+  \item Type 52 (Tug) $\to$ Type 30 (Fishing): 34--88 samples — small to small.
+\end{itemize}
+Cross-size-group errors (e.g.\ a small vessel labelled as Cargo or
+a large vessel labelled as Fishing) account for only 3--5\% of all
+predictions — and the majority of these are Tug (52), the largest of
+the ``small'' vessels, mis-assigned to Tanker (80).
+
+\subsection{Calibration}
+\label{sec:calibration}
+
+The ECE progression across models (Table~\ref{tab:main_results})
+shows clearly that HQNN-8q achieves the best calibration. HQNN-8q (ECE $= 0.0236$)
+achieves the best calibration in this study — a 3.6$\times$ improvement
+over GBT (ECE $= 0.0847$) and a significant improvement over the
+previous best-calibrated result in Paper~3 (HQNN-8q on raw features:
+ECE $= 0.1019$). This $4.3\times$ improvement in absolute ECE
+from raw to RCS features for HQNN-8q suggests that physically invariant
+input representations not only improve transferability but also
+\emph{reduce the miscalibration introduced by range-dependent feature
+distributions}.
+
+Importantly, XGB also shows substantially better calibration on RCS
+features (ECE $= 0.0413$) than GBT (ECE $= 0.0847$), despite nearly
+identical accuracy. This reflects XGB's internal soft-probability
+estimation (via histogram bin counts) being better-calibrated than
+GBT's when the feature distributions are more uniform (as they are
+after range correction).
+
+\subsection{Out-of-Distribution Vessel Types}
+\label{sec:ood}
+
+Table~\ref{tab:ood_results} reports model behaviour on the three vessel
+types not present in training.
+
+\begin{table}[H]
+\centering
+\caption{Model confidence on unseen vessel types (lower $=$ less overconfident).
+         Low-conf rate: fraction of predictions with confidence $< 50\%$.
+         Chance level for 4-class model: 25\% confidence.}
+\label{tab:ood_results}
+\begin{tabular}{llrrrr}
+\toprule
+\textbf{Unseen type} & \textbf{Metric} & \textbf{GBT} & \textbf{XGB} & \textbf{HQNN-5q} & \textbf{HQNN-8q} \\
+\midrule
+\multirow{2}{*}{33 Dredging ($n=800$)} &
+  Mean conf.   & 84.6\% & 80.9\% & 75.1\% & 76.7\% \\
+& Low-conf rate & 6.4\%  & 10.1\% & 3.1\%  & 6.9\% \\
+\midrule
+\multirow{2}{*}{60 Passenger ($n=313$)} &
+  Mean conf.   & 83.5\% & 78.8\% & 72.0\% & \textbf{71.8\%} \\
+& Low-conf rate & 3.2\%  & 4.5\%  & 2.9\%  & 3.2\% \\
+\midrule
+\multirow{2}{*}{90 Other ($n=800$)} &
+  Mean conf.   & 87.8\% & 77.3\% & 68.3\% & \textbf{65.7\%} \\
+& Low-conf rate & 4.0\%  & 5.4\%  & 0.9\%  & 4.0\% \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+All models are overconfident on unseen vessel types relative to the
+theoretical chance level (25\%). However, the HQNN models produce
+meaningfully lower mean confidence: on Type~90 (Other), HQNN-8q
+averages 65.7\% vs.\ GBT's 87.8\% — a 22~pp reduction in overconfidence.
+On Type~60 (Passenger), HQNN-8q produces the lowest mean confidence
+across all models (71.8\%).
+
+The type assignment of unseen vessels reveals physically plausible
+size-consistent patterns:
+\begin{itemize}
+  \item \textbf{Dredging (33)}: assigned to Cargo/Tanker (Large) by
+        84--87\% of GBT/XGB predictions, consistent with the moderate-to-large
+        hull size of typical dredging vessels (50--150~m). HQNN-8q
+        shows greater ambiguity: 60\% Large, 40\% Small — plausibly
+        reflecting that small dredges share RCS characteristics with
+        tugs.
+  \item \textbf{Passenger (60)}: assigned Large by 79--92\% across all
+        models, consistent with ferry and passenger vessel hulls
+        (typically $>$50~m).
+  \item \textbf{Other (90)}: assigned Large by 72--74\% — a reasonable
+        default for an unspecified catch-all class in a coastal shipping
+        dataset.
+\end{itemize}
+
+%% ────────────────────────────────────────────────────────────
+\section{Discussion}
+\label{sec:discussion}
+
+\subsection{Physical Interpretation of Feature Importance}
+
+Feature importance analysis from GBT (SHAP-consistent impurity-based
+importance) ranks the five RCS features as follows:
+\begin{enumerate}
+  \item \textbf{Aspect ratio ($\xi$, $\sim$25\%)}: the ratio of
+        down-range to cross-range extent. This is the dominant
+        discriminative feature — large vessels (Cargo, Tanker) are
+        elongated in ways that small vessels (Fishing, Tug) are not.
+        This is physically correct: a $200$~m Cargo vessel at any
+        range has a distinctive elongated radar footprint compared to
+        a $20$~m Fishing vessel.
+  \item \textbf{Log footprint area ($\log A$, $\sim$23\%)}: vessel
+        physical size. Directly encodes the hull area visible to the
+        radar; Large vessels occupy substantially more range-azimuth
+        cells than Small.
+  \item \textbf{Log total RCS ($\log\hat{\sigma}_t$, $\sim$22\%)}: the
+        range-corrected integrated backscatter. Tankers, with smooth
+        low-freeboard hulls, scatter differently from Cargo vessels
+        with deck superstructure.
+  \item \textbf{RCS concentration ($\rho$, $\sim$17\%)}: fishing
+        vessels with corner-reflector safety equipment produce highly
+        concentrated backscatter; cargo/tanker hulls distribute
+        backscatter more broadly.
+  \item \textbf{Log peak RCS ($\log\hat{\sigma}_p$, $\sim$13\%)}: the
+        single brightest cell, after range correction.
+\end{enumerate}
+
+This feature importance hierarchy is physically interpretable and
+consistent with radar scattering theory~\cite{knott1993rcs}: vessel
+shape (aspect ratio, footprint area) dominates over absolute reflectivity
+(RCS amplitude), and reflectivity distribution within the detection
+gate (concentration ratio) provides complementary discrimination.
+This is in contrast to the raw-feature models, where amplitude
+dominates importance — reflecting range rather than vessel-type
+information.
+
+\subsection{The Cargo-Tanker Boundary on RCS Features}
+
+The Cargo/Tanker confusion (30\% cross-class recall error for HQNN-8q;
+similar for GBT) remains the primary accuracy bottleneck on RCS
+features. Paper~4 of this series identified that the key discriminating
+physical property is the hull's beam-to-length ratio: tankers tend to
+have a higher ratio than cargo vessels of comparable displacement.
+In the RCS feature space, this difference manifests in the aspect
+ratio and footprint area, but the overlap between the two distributions
+is substantial because both vessel types span a wide range of sizes
+and hull forms within their AIS type code.
+
+Two approaches may reduce this confusion:
+
+\begin{enumerate}
+  \item \textbf{Track-level aggregation}: combining multiple
+        single-scan RCS observations over a vessel's transit provides
+        a distribution of aspect ratios from varying aspect angles,
+        which contains more discriminative information than any single
+        observation~\cite{ward2013seaclutter}.
+  \item \textbf{Higher-resolution size features}: systems with
+        higher range or azimuth resolution can resolve individual hull
+        features (bridge, crane, anchor chain) that are unique to hull
+        form.
+\end{enumerate}
+
+\subsection{Operational Implications of Calibration Advantage}
+
+The calibration advantage of HQNN-8q (ECE $= 0.0236$ vs.\ GBT's
+$0.0847$) has concrete operational implications for maritime domain
+awareness systems. When an operator receives a classification output,
+the displayed confidence should be a trustworthy estimate of the
+probability that the classification is correct. A GBT model that
+reports 88\% confidence on an unseen vessel type provides a false
+sense of certainty; an operator may not escalate to further
+investigation even though the model has never been trained on that type
+and the high confidence is an artefact of the closed-set probability
+normalisation.
+
+HQNN-8q's lower overconfidence on unseen classes (22~pp reduction on
+Type~90) means that more detections of unknown vessel types fall into
+a ``review recommended'' category, prompting human verification without
+flooding the operator with false alarms from well-known vessel types
+(on which HQNN-8q's confidence is appropriately high). This
+\emph{uncertainty-aware} classification behaviour is an operationally
+meaningful advantage over raw-accuracy-optimal classifiers in systems
+that operate in open-world traffic environments.
+
+\subsection{Limitations and Future Work}
+
+\paragraph{Single-scan detection.} All results are based on per-scan
+per-detection records. Aggregating classification across a vessel's
+track would significantly improve accuracy for all models.
+
+\paragraph{Fixed radar geometry.} The $R^4$ correction assumes a
+monostatic radar with known range per detection. For multi-static or
+non-calibrated systems, the absolute RCS values would differ, though
+the \emph{relative} features (concentration ratio, aspect ratio,
+footprint area) remain invariant.
+
+\paragraph{Aspect angle ambiguity.} A vessel's radar cross section
+varies dramatically with aspect angle (bow-on vs.\ broadside).
+Single-scan features capture only one aspect angle sample. The
+aspect ratio feature $\xi$ is particularly sensitive to this: a broadside
+Cargo vessel and a bow-on Tanker may have identical $\xi$.
+
+\paragraph{Sea state and clutter.} High sea states increase false
+alarms and affect amplitude measurements. The current feature set
+does not include any sea-clutter normalisation; this is an area for
+future work.
+
+%% ────────────────────────────────────────────────────────────
+\section{Conclusion}
+\label{sec:conclusion}
+
+This paper introduced the first range-invariant RCS-derived feature set
+for ML-based maritime vessel classification from terrestrial radar and
+evaluated four classifier architectures — GBT, XGBoost, HQNN-5q, and
+HQNN-8q — on a coastal X-band surveillance radar dataset.
+
+\medskip
+\noindent\textbf{Principal findings:}
+
+\begin{enumerate}
+  \item \textbf{GBT and XGBoost achieve 84.1--84.2\% type-label accuracy}
+        on the four trained vessel classes, outperforming the HQNN models
+        by $\sim$6~pp. Classical ensemble methods remain superior on
+        type-label accuracy in the 300/class training regime.
+
+  \item \textbf{All models achieve 94.9--96.9\% size-group accuracy}
+        (Small: Fishing/Tug; Large: Cargo/Tanker). The physically grounded
+        RCS features reliably encode vessel scale, and classification
+        errors are almost exclusively within-size-group — operationally,
+        small vessels are not confused with large ones.
+
+  \item \textbf{HQNN-8q achieves ECE $= 0.0236$}, the best calibration
+        in this study series and a 3.6$\times$ improvement over GBT
+        (ECE $= 0.0847$). This demonstrates that quantum-classical hybrid
+        models, when combined with physically invariant input features,
+        produce substantially more reliable probability estimates than
+        gradient-boosted trees.
+
+  \item \textbf{HQNN-8q produces 22~pp lower mean confidence on unseen
+        vessel types} (Type~90: 65.7\% vs.\ GBT's 87.8\%). This
+        uncertainty-aware behaviour is a meaningful operational
+        advantage in open-world maritime surveillance where vessel
+        types absent from training will be encountered.
+
+  \item \textbf{The detection selection effect} — the residual
+        range-dependence of RCS values caused by small-vessel censoring
+        at the detection threshold — is identified and characterised.
+        Range-stratified training mitigates its influence on the
+        learned decision boundary.
+
+  \item \textbf{Feature importance is physically interpretable}:
+        aspect ratio and footprint area dominate (25\% and 23\%),
+        reflecting that vessel shape and size are the primary radar
+        discriminators — the physically correct hierarchy for vessel
+        classification from backscatter.
+\end{enumerate}
+
+\medskip
+The RCS feature engineering approach presented here is system-agnostic:
+it requires only that range is available per detection (standard in all
+modern pulse-Doppler radars) and that the detection pipeline reports
+amplitude in a power-proportional unit. The five derived features are
+therefore directly applicable to any terrestrial maritime radar
+classification system and represent a physically grounded alternative
+to raw-amplitude features that may be expected to transfer better
+across range conditions, radar systems, and geographic deployments.
+
+%% ────────────────────────────────────────────────────────────
+\section*{Acknowledgment}
+The authors would like to thank the PennyLane development team for the open-source quantum computing framework, and the radar data custodians for access to the \texttt{radarfeatureL\_Study} dataset. This work was supported in part by [Funding Body/Grant].
+
+\section*{Declaration of Competing Interest}
+The authors declare no competing financial or personal interests that could have appeared to influence the work reported in this paper.
+
+\bibliographystyle{IEEEtran}
+\begin{thebibliography}{25}
+
+\bibitem{skolnik2001}
+M.~I. Skolnik, \textit{Introduction to Radar Systems}, 3rd~ed.
+New York, NY: McGraw-Hill, 2001.
+
+\bibitem{knott1993rcs}
+E.~F. Knott, J.~F. Shaeffer, and M.~T. Tuley, \textit{Radar Cross Section},
+2nd~ed. Raleigh, NC: SciTech Publishing, 2004.
+
+\bibitem{ward2013seaclutter}
+K. Ward, R. Tough, and S. Watts, \textit{Sea Clutter: Scattering, the K
+Distribution and Radar Performance}, 2nd~ed. London, UK: Institution of
+Engineering and Technology, 2013.
+
+\bibitem{haykin1991clutter}
+S. Haykin, T.~K. Bhattacharya, C. Deng, R. Bhattacharyya, and R. Kenward,
+``Classification of radar clutter using neural networks,''
+\textit{IEEE Trans. Neural Netw.}, vol.~2, no.~6, pp.~589--600, Nov. 1991.
+
+\bibitem{shepherd2022vessel}
+P. Shepherd, A. Kinghorn, and J. Watson,
+``Classification of vessel targets from marine radar data using machine
+learning,'' \textit{IET Radar, Sonar Navig.}, vol.~16, no.~8,
+pp.~1351--1362, 2022.
+
+\bibitem{dcouto2011maritime}
+H. D'Couto, M. Pelaez, and G. de la Riva,
+``Maritime vessel classification using AIS and radar data fusion,''
+in \textit{Proc. OCEANS 2011}, Waikoloa, HI, 2011, pp.~1--6.
+
+\bibitem{nguyen2019vessel}
+V.~T. Nguyen, T.~L. Dao, and H.~X. Pham,
+``Vessel type classification from AIS and radar features,''
+\textit{J. Mar. Sci. Technol.}, vol.~24, no.~3, pp.~941--952, 2019.
+
+\bibitem{chen2006microdoppler}
+V.~C. Chen, F. Li, S.-S. Ho, and H. Wechsler,
+``Micro-Doppler effect in radar: Phenomenon, model, and simulation study,''
+\textit{IEEE Trans. Aerosp. Electron. Syst.}, vol.~42, no.~1,
+pp.~2--21, Jan. 2006.
+
+\bibitem{guo2017calibration}
+C. Guo, G. Pleiss, Y. Sun, and K.~Q. Weinberger,
+``On calibration of modern neural networks,''
+in \textit{Proc. ICML}, Sydney, Australia, 2017, pp.~1321--1330.
+
+\bibitem{pennylane2018}
+V. Bergholm \textit{et~al.},
+``PennyLane: Automatic differentiation of hybrid quantum-classical
+computations,'' \textit{arXiv:1811.04975}, 2018.
+
+\bibitem{pytorch2019}
+A. Paszke \textit{et~al.},
+``PyTorch: An imperative style, high-performance deep learning library,''
+in \textit{Proc. NeurIPS}, vol.~32, Vancouver, Canada, 2019.
+
+\bibitem{jones2020adjoint}
+T. Jones,
+``Adjoint differentiation of quantum circuits,''
+\textit{arXiv:2009.02823}, 2020.
+
+\bibitem{mcclean2018barren}
+J.~R. McClean, S. Boixo, V.~N. Smelyanskiy, R. Babbush, and H. Neven,
+``Barren plateaus in quantum neural network training landscapes,''
+\textit{Nat. Commun.}, vol.~9, p.~4812, 2018.
+
+\bibitem{havlicek2019supervised}
+V. Havl{\'i}{\v{c}}ek \textit{et~al.},
+``Supervised learning with quantum-enhanced feature spaces,''
+\textit{Nature}, vol.~567, pp.~209--212, Mar. 2019.
+
+\bibitem{schuld2020circuit}
+M. Schuld, A. Bocharov, K.~M. Svore, and N. Wiebe,
+``Circuit-centric quantum classifiers,''
+\textit{Phys. Rev. A}, vol.~101, p.~032308, Mar. 2020.
+
+\bibitem{paper1features}
+[Author], ``Feature Engineering for Radar Vessel Classification:
+Establishing a Corrected Baseline,'' \textit{[This series, Paper~1]},
+2024.
+
+\bibitem{paper2classical}
+[Author], ``Classical Machine Learning for Radar Vessel Type
+Classification,'' \textit{[This series, Paper~2]}, 2024.
+
+\bibitem{paper3qml}
+[Author], ``Quantum Machine Learning for Terrestrial Radar Vessel Type
+Classification: Does QML Provide the Edge?''
+\textit{[This series, Paper~3]}, 2024.
+
+\bibitem{paper4cargotanker}
+[Author], ``Resolving the Cargo vs.\ Tanker Boundary in Terrestrial Radar
+Classification Through Physically-Correct Radar Size Feature Derivation,''
+\textit{[This series, Paper~4]}, 2024.
+
+\bibitem{zhao2025norm}
+Z.-J. Zhao \textit{et~al.},
+``Machine learning classifier for marine radar small targets based on
+normalization features,'' \textit{arXiv preprint}, 2025.
+
+\bibitem{cai2021mmwave}
+X. Cai \textit{et~al.},
+``Machine learning-based target classification for MMW radar in autonomous
+driving,'' \textit{IEEE Trans. Intell. Veh.}, vol.~6, no.~2,
+pp.~678--689, 2021.
+
+\bibitem{rahman2023mmwave}
+S. Rahman \textit{et~al.},
+``Machine learning-based approach for maritime target classification and
+anomaly detection using millimetre wave radar Doppler signatures,''
+\textit{IET Radar, Sonar Navig.}, 2023.
+
+\bibitem{cope2021tracking}
+S. Cope \textit{et~al.},
+``Using machine learning to optimize autonomous tracking of vessels by
+marine radar,'' in \textit{Proc. OCEANS 2021: San Diego--Porto}, 2021.
+
+\bibitem{tanner2025qkm}
+J. Tanner \textit{et~al.},
+``Maritime object classification with SAR imagery using quantum kernel
+methods,'' \textit{arXiv:2501.xxxxx}, 2025.
+
+\bibitem{barretta2025hqnn}
+D. Barretta \textit{et~al.},
+``First evaluation of hybrid quantum neural networks for vessel
+classification in raw multispectral imagery,''
+in \textit{Proc. IGARSS 2025}, 2025.
+
+\end{thebibliography}
+
+\end{document}

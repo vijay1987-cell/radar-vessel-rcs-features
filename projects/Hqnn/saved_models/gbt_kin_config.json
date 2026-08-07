@@ -1,0 +1,28 @@
+{
+  "n_features": 9,
+  "n_classes": 4,
+  "model_type": "GradientBoosting",
+  "cv_acc": 0.9432893552028465,
+  "cv_f1": 0.9429572821651027,
+  "test_acc": 0.9442861665083887,
+  "test_f1": 0.9439639764614096,
+  "n_estimators": 300,
+  "max_depth": 4,
+  "learning_rate": 0.1,
+  "subsample": 0.8,
+  "min_samples_leaf": 20,
+  "random_state": 42,
+  "model": "GBT",
+  "feature_cols": [
+    "log_peak_rcs",
+    "log_total_rcs",
+    "rcs_conc",
+    "aspect_ratio",
+    "footprint_m2",
+    "sog",
+    "measured_sog_std_900",
+    "measured_cog_std_900",
+    "measured_sog_avg_900"
+  ],
+  "feature_engineering": "kinematic_rcs"
+}

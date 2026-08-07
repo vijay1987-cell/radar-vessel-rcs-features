@@ -1,0 +1,30 @@
+{
+  "gbt_kin_cv_acc": 0.9432893552028465,
+  "gbt_kin_cv_f1": 0.9429572821651027,
+  "gbt_kin_test_acc": 0.9442861665083887,
+  "gbt_kin_test_f1": 0.9439639764614096,
+  "xgb_kin_cv_acc": 0.9310450049902785,
+  "xgb_kin_cv_f1": 0.9305304938225799,
+  "xgb_kin_test_acc": 0.932392710170488,
+  "xgb_kin_test_f1": 0.9318195019834902,
+  "features": [
+    "log_peak_rcs",
+    "log_total_rcs",
+    "rcs_conc",
+    "aspect_ratio",
+    "footprint_m2",
+    "sog",
+    "measured_sog_std_900",
+    "measured_cog_std_900",
+    "measured_sog_avg_900"
+  ],
+  "n_classes": 4,
+  "class_names": [
+    "30",
+    "52",
+    "70",
+    "80"
+  ],
+  "n_train": 88449,
+  "n_test": 22113
+}

@@ -1,0 +1,20 @@
+{
+  "model": "SVM",
+  "n_features": 5,
+  "n_classes": 5,
+  "feature_cols": [
+    "azimuth",
+    "PeakAmplitude",
+    "TotalAmplitude",
+    "down_range_extent",
+    "az_extent_m"
+  ],
+  "class_names": [
+    "30",
+    "33",
+    "52",
+    "70",
+    "80"
+  ],
+  "note": "RBF kernel, C=10, 300/class V1 data"
+}

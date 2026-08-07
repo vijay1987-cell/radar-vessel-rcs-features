@@ -1,0 +1,82 @@
+\relax 
+\providecommand\hyper@newdestlabel[2]{}
+\providecommand\HyField@AuxAddToFields[1]{}
+\providecommand\HyField@AuxAddToCoFields[2]{}
+\citation{breiman2001random}
+\citation{friedman2001greedy,chen2016xgboost}
+\citation{grinsztajn2022trees}
+\citation{cai2021mmwave}
+\citation{pohontzu2023trajectory}
+\citation{bentes2017sar}
+\citation{asikuzzaman2025sar}
+\citation{guo2017calibration}
+\citation{niculescumizil2005calibration}
+\@writefile{toc}{\contentsline {section}{\numberline {I}Introduction}{1}{section.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {II}Related Work}{1}{section.2}\protected@file@percent }
+\newlabel{sec:relatedwork}{{II}{1}{Related Work}{section.2}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {II-A}}Machine Learning for Vessel Classification}{1}{subsection.2.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {II-B}}Probability Calibration}{1}{subsection.2.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {III}Dataset and Preprocessing}{1}{section.3}\protected@file@percent }
+\newlabel{sec:data}{{III}{1}{Dataset and Preprocessing}{section.3}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {III-A}}Source Data}{1}{subsection.3.1}\protected@file@percent }
+\citation{breiman2001random}
+\citation{cortes1995support}
+\citation{friedman2001greedy}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {III-B}}Class Distribution}{2}{subsection.3.2}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {I}{\ignorespaces Dataset class distribution after cleaning.}}{2}{table.caption.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {III-C}}Feature Set}{2}{subsection.3.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {III-D}}Preprocessing Pipeline}{2}{subsection.3.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {IV}Classical ML Models}{2}{section.4}\protected@file@percent }
+\newlabel{sec:models}{{IV}{2}{Classical ML Models}{section.4}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {IV-A}}Random Forest (RF)}{2}{subsection.4.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {IV-B}}Support Vector Machine (SVM)}{2}{subsection.4.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {IV-C}}Multi-Layer Perceptron (MLP)}{2}{subsection.4.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {IV-D}}Gradient Boosting Trees (GBT)}{2}{subsection.4.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {V}Experimental Setup}{2}{section.5}\protected@file@percent }
+\newlabel{sec:setup}{{V}{2}{Experimental Setup}{section.5}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {V-A}}Evaluation Metrics}{2}{subsection.5.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {V-B}}Baseline: Original 5-Feature Set}{2}{subsection.5.2}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {1}{\ignorespaces Full model comparison across classical and quantum architectures. (a)~Accuracy and Macro F1; GBT and RF lead on raw accuracy. (b)~Expected Calibration Error (ECE): XGB and HQNN show superior probability calibration despite lower accuracy than GBT.}}{3}{figure.caption.2}\protected@file@percent }
+\providecommand*\caption@xref[2]{\@setref\relax\@undefined{#1}}
+\newlabel{fig:model_comparison}{{1}{3}{Full model comparison across classical and quantum architectures. (a)~Accuracy and Macro F1; GBT and RF lead on raw accuracy. (b)~Expected Calibration Error (ECE): XGB and HQNN show superior probability calibration despite lower accuracy than GBT}{figure.caption.2}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {VI}Results}{3}{section.6}\protected@file@percent }
+\newlabel{sec:results}{{VI}{3}{Results}{section.6}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {VI-A}}Overall Performance}{3}{subsection.6.1}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {II}{\ignorespaces Classical ML model comparison. Point estimates on the held-out test set ($n=240$); 95\% CIs from $B=1{,}000$ bootstrap resamples.}}{3}{table.caption.3}\protected@file@percent }
+\newlabel{tab:classical_results}{{II}{3}{Classical ML model comparison. Point estimates on the held-out test set ($n=240$); 95\% CIs from $B=1{,}000$ bootstrap resamples}{table.caption.3}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {VI-B}}Per-Class Recall}{3}{subsection.6.2}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {III}{\ignorespaces Per-class recall for each classical model.}}{3}{table.caption.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {VI-C}}Confusion Matrices}{3}{subsection.6.3}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {IV}{\ignorespaces GBT confusion matrix (test set, $n=240$).}}{3}{table.caption.6}\protected@file@percent }
+\newlabel{tab:cm_gbt}{{IV}{3}{GBT confusion matrix (test set, $n=240$)}{table.caption.6}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {2}{\ignorespaces Normalised confusion matrix for GBT (best classical model, $n=240$ test set). Dredging (33) is perfectly recalled (100\%); nearly all errors are Cargo$\leftrightarrow $Tanker swaps, confirming that this class pair is the fundamental challenge for classical ML on this feature set.}}{3}{figure.caption.5}\protected@file@percent }
+\newlabel{fig:confusion_p2}{{2}{3}{Normalised confusion matrix for GBT (best classical model, $n=240$ test set). Dredging (33) is perfectly recalled (100\%); nearly all errors are Cargo$\leftrightarrow $Tanker swaps, confirming that this class pair is the fundamental challenge for classical ML on this feature set}{figure.caption.5}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {VI-D}}Feature Importance (GBT and RF)}{3}{subsection.6.4}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {V}{\ignorespaces Feature importance rankings from RF (Gini) and GBT.}}{3}{table.caption.7}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {VI-E}}Confidence Score Analysis}{3}{subsection.6.5}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {VI}{\ignorespaces Classical model calibration metrics (100/class test set). Lower ECE is better.}}{3}{table.caption.8}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {VI-F}}Low-Data Regime Performance}{3}{subsection.6.6}\protected@file@percent }
+\newlabel{sec:lowdata}{{\mbox  {VI-F}}{3}{Low-Data Regime Performance}{subsection.6.6}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {VII}{\ignorespaces Classical model performance degradation from 300/class (V1) to 100/class. $\Delta $ Acc is the pp change.}}{4}{table.caption.9}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {VII}Discussion}{4}{section.7}\protected@file@percent }
+\newlabel{sec:discussion}{{VII}{4}{Discussion}{section.7}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {VII-A}}The Cargo/Tanker Ceiling}{4}{subsection.7.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {VII-B}}Why GBT Leads}{4}{subsection.7.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {VII-C}}Limitations of Classical Approaches}{4}{subsection.7.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {VIII}Conclusion}{4}{section.8}\protected@file@percent }
+\bibstyle{IEEEtran}
+\bibcite{breiman2001random}{1}
+\bibcite{cortes1995support}{2}
+\bibcite{friedman2001greedy}{3}
+\bibcite{chen2016xgboost}{4}
+\bibcite{chawla2002smote}{5}
+\bibcite{grinsztajn2022trees}{6}
+\bibcite{guo2017calibration}{7}
+\bibcite{niculescumizil2005calibration}{8}
+\bibcite{cai2021mmwave}{9}
+\bibcite{pohontzu2023trajectory}{10}
+\bibcite{bentes2017sar}{11}
+\bibcite{awais2025survey}{12}
+\bibcite{asikuzzaman2025sar}{13}
+\@writefile{toc}{\contentsline {section}{References}{5}{section*.13}\protected@file@percent }
+\gdef \@abspage@last{5}

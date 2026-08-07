@@ -1,0 +1,37 @@
+\contentsline {section}{\numberline {1}Introduction}{4}{section.1}%
+\contentsline {section}{\numberline {2}Quantum Computing Background}{4}{section.2}%
+\contentsline {subsection}{\numberline {2.1}Qubits and Quantum Gates}{4}{subsection.2.1}%
+\contentsline {subsection}{\numberline {2.2}Quantum Measurement}{5}{subsection.2.2}%
+\contentsline {subsection}{\numberline {2.3}Data Encoding: Angle Embedding}{5}{subsection.2.3}%
+\contentsline {section}{\numberline {3}QML Model Architectures}{5}{section.3}%
+\contentsline {subsection}{\numberline {3.1}Variational Quantum Classifier (VQC)}{5}{subsection.3.1}%
+\contentsline {subsubsection}{\numberline {3.1.1}Architecture}{5}{subsubsection.3.1.1}%
+\contentsline {subsubsection}{\numberline {3.1.2}Parameter Count}{6}{subsubsection.3.1.2}%
+\contentsline {subsubsection}{\numberline {3.1.3}Training}{6}{subsubsection.3.1.3}%
+\contentsline {subsection}{\numberline {3.2}Hybrid Quantum--Classical Neural Network (HQNN)}{6}{subsection.3.2}%
+\contentsline {subsubsection}{\numberline {3.2.1}Architecture}{6}{subsubsection.3.2.1}%
+\contentsline {subsubsection}{\numberline {3.2.2}Motivation for Hybrid Architecture}{7}{subsubsection.3.2.2}%
+\contentsline {subsubsection}{\numberline {3.2.3}Training}{7}{subsubsection.3.2.3}%
+\contentsline {subsection}{\numberline {3.3}Quantum Kernel Estimation (QKE)}{7}{subsection.3.3}%
+\contentsline {subsubsection}{\numberline {3.3.1}Quantum Kernel}{7}{subsubsection.3.3.1}%
+\contentsline {subsubsection}{\numberline {3.3.2}Computational Complexity}{7}{subsubsection.3.3.2}%
+\contentsline {subsubsection}{\numberline {3.3.3}Theoretical Advantage}{8}{subsubsection.3.3.3}%
+\contentsline {section}{\numberline {4}Ensemble: VQC + HQNN + GBT}{8}{section.4}%
+\contentsline {section}{\numberline {5}Results}{8}{section.5}%
+\contentsline {subsection}{\numberline {5.1}Overall Performance}{8}{subsection.5.1}%
+\contentsline {subsection}{\numberline {5.2}Cargo vs.\ Tanker: Class-Level Deep Dive}{9}{subsection.5.2}%
+\contentsline {subsection}{\numberline {5.3}Learning Curves}{9}{subsection.5.3}%
+\contentsline {subsection}{\numberline {5.4}Confidence Calibration (ECE)}{9}{subsection.5.4}%
+\contentsline {section}{\numberline {6}When Does QML Help?}{10}{section.6}%
+\contentsline {subsection}{\numberline {6.1}Theoretical Conditions for Quantum Advantage}{10}{subsection.6.1}%
+\contentsline {subsection}{\numberline {6.2}Analysis for the Radar Classification Problem}{11}{subsection.6.2}%
+\contentsline {subsection}{\numberline {6.3}Observed QML Behaviour}{11}{subsection.6.3}%
+\contentsline {section}{\numberline {7}V2 Experiments: Probing the Boundaries of QML Advantage}{12}{section.7}%
+\contentsline {subsection}{\numberline {7.1}Experiment 1 — Data Efficiency (100 Samples/Class)}{12}{subsection.7.1}%
+\contentsline {subsection}{\numberline {7.2}Experiment 2 — Circuit Depth: 8 Qubits, 4 Layers}{13}{subsection.7.2}%
+\contentsline {subsection}{\numberline {7.3}Experiment 3 — Quantum Kernel Estimation (QKE)}{13}{subsection.7.3}%
+\contentsline {section}{\numberline {8}Discussion}{14}{section.8}%
+\contentsline {subsection}{\numberline {8.1}QML vs.\ Classical: The Core Trade-off}{14}{subsection.8.1}%
+\contentsline {subsection}{\numberline {8.2}Barren Plateau Problem}{14}{subsection.8.2}%
+\contentsline {subsection}{\numberline {8.3}Simulator vs.\ Real Quantum Hardware}{14}{subsection.8.3}%
+\contentsline {section}{\numberline {9}Conclusion}{15}{section.9}%

@@ -1,0 +1,20 @@
+{
+  "valid_stations": [
+    13,
+    41,
+    44,
+    63,
+    74,
+    76,
+    90
+  ],
+  "n_sample_kernel_matrix": 60,
+  "n_ref_detection": 40,
+  "best_station_kernel_d": 0.8048612661154029,
+  "best_station_kernel_stat": "p75",
+  "best_station_kernel_type": "CNOT",
+  "cnot_oof_acc": 0.504954016564199,
+  "ansatz_oof_acc": 0.504954016564199,
+  "cnot_kernel_feature_cargo_tanker_d": 0.06825790662088219,
+  "amplitude_ceiling_d": 0.56
+}

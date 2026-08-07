@@ -1,0 +1,28 @@
+{
+  "model": "HQNN",
+  "n_features": 5,
+  "n_qubits": 5,
+  "n_layers": 2,
+  "n_classes": 4,
+  "classical_hidden": 32,
+  "n_classical_layers": 2,
+  "ansatz": "strongly_entangling",
+  "activation": "relu",
+  "feature_cols": [
+    "log_peak_rcs",
+    "log_total_rcs",
+    "rcs_conc",
+    "aspect_ratio",
+    "footprint_m2"
+  ],
+  "class_names": [
+    "30",
+    "52",
+    "70",
+    "80"
+  ],
+  "accuracy": 0.7766,
+  "f1_macro": 0.7756,
+  "ece": 0.0264,
+  "note": "HQNN 5q RCS features 300/class range-stratified"
+}

@@ -291,47 +291,144 @@ def _run_any_inference(model, cfg: dict, X: np.ndarray) -> np.ndarray:
     return _run_sklearn_inference(model, X)   # GBT, RF, QKE, etc.
 
 
-def _compute_kinematic_rcs_features(df: 'pd.DataFrame') -> 'pd.DataFrame':
-    """Derive kinematic+RCS features from raw radar columns.
+# ── Inference ETL ─────────────────────────────────────────────────────────────
 
-    Required raw columns: range, PeakAmplitude, TotalAmplitude,
-    down_range_extent, cross_range_extent, RSog,
-    measured_sog_std_900, measured_cog_std_900, measured_sog_avg_900
+# Minimum raw columns required for any model
+_BASE_RAW_COLS = ['range', 'azimuth', 'PeakAmplitude', 'TotalAmplitude', 'down_range_extent']
+
+# Kinematic rolling-stat columns (require track history in source data)
+_KIN_STAT_COLS = ['RSog', 'measured_sog_std_900', 'measured_cog_std_900', 'measured_sog_avg_900']
+
+# Human-readable descriptions for UI
+_RAW_COL_NOTES = {
+    'range':                 'radar slant range (m)',
+    'azimuth':               'azimuth angle (deg)',
+    'PeakAmplitude':         'peak detection amplitude',
+    'TotalAmplitude':        'total integrated amplitude',
+    'down_range_extent':     'range gate width (m)',
+    'cross_range_extent':    'cross-range extent (m)  ← preferred',
+    'az_extent_m':           'azimuth extent (radians) ← converted via × range',
+    'RSog':                  'radar speed over ground (m/s)',
+    'measured_sog_std_900':  'speed std dev over 900 s window',
+    'measured_cog_std_900':  'course std dev over 900 s window',
+    'measured_sog_avg_900':  'mean speed over 900 s window',
+}
+
+
+def _etl_inference(raw_df: 'pd.DataFrame', cfg: dict, pre: dict) -> tuple:
+    """Unified ETL for inference — works with any raw radar CSV.
+
+    Steps:
+      1. Normalise cross-range column (metres or radians → metres)
+      2. Validate base raw columns are present
+      3. Compute all derivable features in one pass
+      4. Drop physically invalid rows (amplitude/range ≤ 0)
+      5. Select model's feature_cols; raise clear error if kinematic
+         stats needed but not available
+      6. Impute NaN with training-scaler means
+      7. Scale with model's preprocessor scaler
+
+    Returns: (X_scaled np.ndarray, df_clean pd.DataFrame, report dict)
     """
-    import numpy as np
-    df = df.copy()
+    df = raw_df.copy()
+    report = {'n_input': len(df), 'warnings': [], 'conversions': []}
+
+    # 1. Cross-range normalisation
+    if 'cross_range_extent' not in df.columns:
+        if 'az_extent_m' in df.columns:
+            if 'range' not in df.columns:
+                raise ValueError("CSV has 'az_extent_m' but no 'range' — cannot convert radians to metres.")
+            df['cross_range_extent'] = df['az_extent_m'] * df['range']
+            report['conversions'].append(
+                "az_extent_m (radians) × range → cross_range_extent (metres)"
+            )
+        else:
+            raise ValueError(
+                "CSV must contain 'cross_range_extent' (metres) "
+                "or 'az_extent_m' (radians) to compute extent features."
+            )
+
+    # 2. Validate base columns
+    missing_base = [c for c in _BASE_RAW_COLS if c not in df.columns]
+    if missing_base:
+        raise ValueError(f"CSV is missing required raw columns: {missing_base}")
+
+    # 3. Compute all derivable features
     R  = df['range'].clip(lower=1.0)
     Ap = df['PeakAmplitude'].clip(lower=1e-9)
     At = df['TotalAmplitude'].clip(lower=1e-9)
     er = df['down_range_extent'].clip(lower=0.1)
     ec = df['cross_range_extent'].clip(lower=0.1)
+
     df['log_peak_rcs']  = np.log(Ap) + 4 * np.log(R)
     df['log_total_rcs'] = np.log(At) + 4 * np.log(R)
     df['rcs_conc']      = Ap / At
     df['aspect_ratio']  = er / ec
     df['footprint_m2']  = np.log(er * ec)
-    df['sog']           = df['RSog'].clip(upper=15.0)
-    return df
+    df['az_extent_m']   = ec          # metres, overwrite radians if present
 
+    if 'RSog' in df.columns:
+        df['sog'] = df['RSog'].clip(upper=15.0)
 
-_KIN_RAW_COLS = [
-    'range', 'PeakAmplitude', 'TotalAmplitude',
-    'down_range_extent', 'cross_range_extent', 'RSog',
-    'measured_sog_std_900', 'measured_cog_std_900', 'measured_sog_avg_900',
-]
+    # 4. Drop physically invalid rows
+    invalid = (
+        (df['range']              <= 0) |
+        (df['PeakAmplitude']      <= 0) |
+        (df['TotalAmplitude']     <= 0) |
+        (df['down_range_extent']  <= 0) |
+        (df['cross_range_extent'] <= 0)
+    )
+    n_invalid = int(invalid.sum())
+    if n_invalid > 0:
+        df = df[~invalid].reset_index(drop=True)
+        report['warnings'].append(
+            f"{n_invalid} rows dropped: physically invalid values "
+            f"(≤0 in range / amplitude / extent)"
+        )
 
+    # 5. Select model feature_cols — raise informative error if kinematic missing
+    feature_cols = pre.get('feature_cols') or cfg.get('feature_cols', [])
+    kin_needed   = [c for c in feature_cols if c in _KIN_STAT_COLS or c == 'sog']
+    kin_missing  = [c for c in kin_needed if c not in df.columns]
+    if kin_missing:
+        raise ValueError(
+            f"Model **{cfg.get('note', cfg.get('model',''))}** needs kinematic features "
+            f"that are not in this CSV: `{kin_missing}`.\n\n"
+            "Kinematic features require track history (rolling 900 s statistics). "
+            "Upload the main tracked radar CSV (`radarfeatureL_MERGED_VALID_updated1.csv`) "
+            "rather than a snapshot file."
+        )
 
-def _apply_feature_engineering(df: 'pd.DataFrame', cfg: dict) -> 'pd.DataFrame':
-    """Apply model-specific feature engineering to a raw inference dataframe."""
-    fe = cfg.get('feature_engineering', '')
-    if fe == 'kinematic_rcs':
-        missing = [c for c in _KIN_RAW_COLS if c not in df.columns]
-        if missing:
-            raise ValueError(
-                f"Kinematic+RCS model requires raw columns not found in CSV: {missing}"
-            )
-        return _compute_kinematic_rcs_features(df)
-    return df
+    other_missing = [c for c in feature_cols if c not in df.columns]
+    if other_missing:
+        raise ValueError(f"Cannot compute required model features: {other_missing}")
+
+    X_df = df[feature_cols].copy()
+
+    # 6. Impute NaN with training scaler means
+    nan_mask = X_df.isna().any(axis=1)
+    n_nan = int(nan_mask.sum())
+    if n_nan > 0:
+        scaler = pre.get('scaler')
+        if scaler is not None and hasattr(scaler, 'mean_'):
+            fill = dict(zip(feature_cols, scaler.mean_))
+        else:
+            fill = X_df.median().to_dict()
+        X_df = X_df.fillna(fill)
+        report['warnings'].append(
+            f"{n_nan} rows had NaN feature values — imputed with training means"
+        )
+
+    report['n_output']    = len(X_df)
+    report['n_dropped']   = report['n_input'] - report['n_output']
+    report['feature_cols'] = feature_cols
+
+    # 7. Scale
+    scaler = pre.get('scaler')
+    X_scaled = (scaler.transform(X_df.values.astype(np.float32))
+                if scaler is not None else X_df.values.astype(np.float32))
+
+    return X_scaled, df.iloc[:len(X_df)].copy(), report
 
 
 # ---------- session state ----------
@@ -1553,17 +1650,30 @@ if _cur == 5:
             scaler_inf        = st.session_state.dp.scaler
             use_saved_weights = False
     
-        st.info(f"**Expected features:** {', '.join(expected_features)}  \n"
-                f"**Classes:** {', '.join(class_names_inf)}")
-    
+        # Show what raw columns the model needs (not derived feature names)
+        if use_saved_weights:
+            _kin_needed = any(c in (pre.get('feature_cols') or [])
+                              for c in _KIN_STAT_COLS + ['sog'])
+            _req_cols = _BASE_RAW_COLS + ['cross_range_extent or az_extent_m']
+            if _kin_needed:
+                _req_cols += _KIN_STAT_COLS
+            st.info(
+                f"**Required raw columns:** `{'`, `'.join(_req_cols)}`  \n"
+                f"Derived features are computed automatically.  \n"
+                f"**Output classes:** {', '.join(class_names_inf)}"
+            )
+        else:
+            st.info(f"**Expected features:** {', '.join(expected_features)}  \n"
+                    f"**Classes:** {', '.join(class_names_inf)}")
+
         # ── Upload new CSV ────────────────────────────────────────
         st.subheader("2 · Upload New Data")
         inf_file = st.file_uploader(
-            "Upload CSV with radar features (label column not required)",
+            "Upload any raw radar CSV — feature engineering runs automatically",
             type=["csv", "txt"],
             key="inference_upload",
         )
-    
+
         if inf_file:
             try:
                 dp_inf = DataProcessor()
@@ -1571,70 +1681,69 @@ if _cur == 5:
             except Exception as e:
                 st.error(f"Failed to load CSV: {e}")
                 st.stop()
-    
-            # Apply feature engineering for models that need derived features
-            # (e.g. kinematic+RCS models require log_peak_rcs, sog, etc.)
-            if use_saved_weights:
-                _chosen_cfg_path = _MODELS_DIR / f'{model_choice}_config.json'
-                if _chosen_cfg_path.exists():
-                    with open(_chosen_cfg_path) as _f:
-                        _chosen_cfg = json.load(_f)
-                    try:
-                        inf_df = _apply_feature_engineering(inf_df, _chosen_cfg)
-                    except ValueError as _e:
-                        st.error(str(_e))
-                        st.stop()
-
-            missing_cols = [c for c in expected_features if c not in inf_df.columns]
-            if missing_cols:
-                st.error(f"CSV is missing required columns: **{missing_cols}**  \n"
-                         f"Found: {inf_df.columns.tolist()}")
-                st.stop()
 
             st.success(f"Loaded — {inf_df.shape[0]} rows × {inf_df.shape[1]} columns")
-            with st.expander("Data preview", expanded=False):
-                st.dataframe(inf_df[expected_features].head(20))
-    
+            with st.expander("Raw data preview", expanded=False):
+                st.dataframe(inf_df.head(20))
+
             # ── Run inference ─────────────────────────────────────
             st.subheader("3 · Run Inference")
-            if st.button("🔮 Run Inference", type="primary"):
-                with st.spinner("Running model inference..."):
+            if st.button("Run Inference", type="primary"):
+                with st.spinner("Running ETL + model inference..."):
                     try:
-                        X_df = inf_df[expected_features].copy()
-    
-                        # Impute NaN values before scaling
-                        nan_rows = X_df.isna().any(axis=1)
-                        n_nan = nan_rows.sum()
-                        if n_nan > 0:
-                            if scaler_inf is not None and hasattr(scaler_inf, 'mean_'):
-                                # Use training feature means from the fitted scaler
-                                fill_values = {col: scaler_inf.mean_[i]
-                                               for i, col in enumerate(expected_features)}
-                            else:
-                                fill_values = X_df.median().to_dict()
-                            X_df = X_df.fillna(fill_values)
-                            st.warning(
-                                f"⚠️ {n_nan} row(s) had missing feature values — "
-                                f"imputed with training feature means before inference."
-                            )
-    
-                        X_inf = X_df.values.astype(np.float32)
-                        if scaler_inf is not None:
-                            X_inf = scaler_inf.transform(X_inf)
-    
                         is_ensemble_choice = "Ensemble" in model_choice
-    
+
                         if use_saved_weights:
                             if is_ensemble_choice:
+                                # All saved models share the same ETL per their preprocessor
                                 probas = []
                                 for n in saved_weight_names:
+                                    _pre_n = _load_preprocessor_for(n)
+                                    with open(_MODELS_DIR / f'{n}_config.json') as _f:
+                                        _cfg_n = json.load(_f)
+                                    X_inf, _, _rep = _etl_inference(inf_df, _cfg_n, _pre_n)
                                     m, cfg_m = _load_weights_model(n)
                                     probas.append(_run_any_inference(m, cfg_m, X_inf))
                                 avg_proba = np.mean(probas, axis=0)
+                                etl_report = _rep
                             else:
+                                with open(_MODELS_DIR / f'{model_choice}_config.json') as _f:
+                                    cfg_chosen = json.load(_f)
+                                X_inf, df_clean, etl_report = _etl_inference(
+                                    inf_df, cfg_chosen, pre)
                                 m, cfg_m = _load_weights_model(model_choice)
                                 avg_proba = _run_any_inference(m, cfg_m, X_inf)
+
+                            # Show ETL report
+                            if etl_report.get('conversions'):
+                                for msg in etl_report['conversions']:
+                                    st.info(f"ETL: {msg}")
+                            if etl_report.get('warnings'):
+                                for msg in etl_report['warnings']:
+                                    st.warning(f"ETL: {msg}")
+                            if etl_report.get('n_dropped', 0) > 0:
+                                st.caption(
+                                    f"Rows: {etl_report['n_input']} input → "
+                                    f"{etl_report['n_output']} after cleaning "
+                                    f"({etl_report['n_dropped']} dropped)"
+                                )
+
                         else:
+                            # Session models: use legacy path (scaler from session)
+                            missing_cols = [c for c in expected_features
+                                            if c not in inf_df.columns]
+                            if missing_cols:
+                                st.error(f"CSV missing columns: {missing_cols}")
+                                st.stop()
+                            X_df = inf_df[expected_features].copy()
+                            nan_rows = X_df.isna().any(axis=1)
+                            if nan_rows.sum() > 0:
+                                X_df = X_df.fillna(X_df.median())
+                                st.warning(f"⚠️ {nan_rows.sum()} rows imputed with column medians")
+                            X_inf = X_df.values.astype(np.float32)
+                            if scaler_inf is not None:
+                                X_inf = scaler_inf.transform(X_inf)
+
                             if is_ensemble_choice:
                                 probas = []
                                 for n in session_model_names:
@@ -1658,20 +1767,21 @@ if _cur == 5:
                         pred_labels = [class_names_inf[int(i)] for i in pred_idx]
                         confidence  = avg_proba.max(axis=1).ravel()
     
-                        # Columns from the uploaded CSV that are NOT model features
-                        # (IDs, label column, any extras) — kept for traceability
-                        passthrough_cols = [c for c in inf_df.columns
-                                            if c not in expected_features]
+                        # Carry through useful identifier columns from the raw CSV
+                        _id_candidates = ['ObjID', 'STATIONID', 'Type', 'range',
+                                          'azimuth', 'datetime', 'timeformat',
+                                          'RLatitude', 'RLongitude']
+                        passthrough_cols = [c for c in _id_candidates if c in inf_df.columns]
                         prob_cols_out = [f'prob_{c}' for c in class_names_inf]
-    
+
                         # Build result dataframe — passthrough cols first, then predictions
-                        result_df = inf_df[passthrough_cols].copy() if passthrough_cols else pd.DataFrame(index=inf_df.index)
+                        result_df = inf_df[passthrough_cols].reset_index(drop=True) if passthrough_cols else pd.DataFrame()
                         result_df.insert(0, 'predicted_class', pred_labels)
                         result_df.insert(1, 'confidence', confidence.round(4))
                         for i, cls in enumerate(class_names_inf):
                             result_df[f'prob_{cls}'] = avg_proba[:, i].round(4)
     
-                        st.success(f"Inference complete — {len(inf_df)} rows classified.")
+                        st.success(f"Inference complete — {len(avg_proba)} rows classified.")
     
                         if passthrough_cols:
                             st.info(f"ID / extra columns carried through: **{', '.join(passthrough_cols)}**")

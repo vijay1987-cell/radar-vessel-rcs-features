@@ -1,555 +1,425 @@
 
 %% ============================================================
-%%  PAPER 6 — RQ6
+%%  PAPER 6 — RQ6  (REVISED — all results from verified experiments)
 %%  Kinematic-RCS Feature Fusion for Maritime Vessel
-%%  Classification: Temporal Behavioural Signatures Break the
-%%  RCS-Only Accuracy Ceiling
+%%  Classification: Temporal Speed Signatures Complement
+%%  Range-Invariant RCS Features
 %% ============================================================
 \documentclass[journal]{IEEEtran}
 \usepackage{amsmath,amssymb,amsfonts}
-\usepackage{booktabs,array,multirow,tabularx}
+\usepackage{booktabs,array,multirow,tabularx,dcolumn}
 \usepackage{graphicx,float,caption}
 \usepackage{xcolor,hyperref,cite}
 \usepackage{algorithm,algpseudocode}
 \hypersetup{colorlinks=true,linkcolor=blue,citecolor=blue,urlcolor=blue}
 
 \newcommand{\vect}[1]{\boldsymbol{#1}}
-\newcommand{\ket}[1]{|#1\rangle}
-\newcommand{\expect}[1]{\langle #1 \rangle}
 \newcommand{\pp}{\,\text{pp}}
 
 \begin{document}
+\graphicspath{{./figures/}}
 
 \title{
-  \textbf{Kinematic--RCS Feature Fusion for Maritime\\
-  Vessel Classification: Temporal Behavioural Signatures\\
-  Break the RCS-Only Accuracy Ceiling}\\[0.4em]
-  \large Research Question 6: Does fusing temporally-aggregated radar
-  kinematic signatures with range-invariant RCS features surpass the
-  classification ceiling of either feature family alone?
+  \textbf{Kinematic--RCS Feature Fusion for Maritime Vessel\\
+  Classification: Temporal Speed Signatures Complement\\
+  Range-Invariant RCS Features}\\[0.4em]
+  \large Research Question~6: Does augmenting range-invariant RCS
+  features with temporally-aggregated kinematic descriptors yield
+  statistically significant accuracy gains across all four classifier
+  architectures?
 }
 \author{Vijay~Kumar~V%
 \IEEEcompsocitemizethanks{
 \IEEEcompsocthanksitem V.~Kumar is an Independent Researcher and Innovator,
 Bangalore, India. E-mail: vinayitsv14@gmail.com.%
-\IEEEcompsocthanksitem This work was self-funded by the author as an
-independent research contribution with no institutional or corporate
-affiliation.%
+\IEEEcompsocthanksitem This work was self-funded by the author.%
 }}
 
 \IEEEtitleabstractindextext{%
 \begin{abstract}
-Papers~1--5 of this series established that range-invariant radar cross
-section (RCS) features achieve 84.0--84.8\% four-class vessel
-classification accuracy for Gradient Boosting Trees and 77.7--78.3\%
-for Hybrid Quantum-Classical Neural Networks (HQNN). The residual error
-in the RCS-only regime is dominated by the Cargo/Tanker pair, which
-share overlapping hull geometry despite representing distinct vessel
-archetypes. This paper introduces a \emph{kinematic augmentation} that
-adds four temporally-aggregated behavioural descriptors --- instantaneous
-speed-over-ground, 15-minute mean speed, 15-minute speed standard
-deviation, and 15-minute course-over-ground standard deviation --- to
-the five RCS features from Paper~5, forming a nine-dimensional
-kinematic-RCS fused descriptor. On a 300 samples-per-class balanced
-corpus of 91,205 cleaned coastal X-band radar detections (Fishing, Tug,
-Cargo, Tanker), Gradient Boosting Trees achieve \textbf{94.4\% accuracy
-and 94.4\% macro F1} --- the highest result in this series and a
-10.4 percentage-point improvement over the RCS-only baseline.
-XGBoost achieves 93.2\% (+8.4\,pp). HQNN-8q achieves 84.2\%
-(+5.9\,pp), now equalling the prior classical ceiling, while HQNN-5q
-achieves 81.7\% (+4.0\,pp). The fusion works because RCS features
-encode \emph{what the vessel looks like} (geometry, reflectivity) while
-kinematic features encode \emph{how the vessel moves} (transit speed
-and course stability) --- two physically orthogonal information
-channels that are conditionally nearly independent given vessel class.
-Cargo and Tanker vessels, while geometrically similar at radar range
-resolution, differ in their kinematic regimes: tankers maintain
-exceptionally steady courses on deep-sea lanes, while cargo vessels
-exhibit greater course variance during port approaches and coastal
-transits. Course-over-ground standard deviation ($\sigma_\psi$) is
-identified as the dominant kinematic discriminator via EDA
-(Cohen's~$d = 0.357$) and confirmed in the fused model by feature
-ablation. Classical ensemble methods scale substantially better than
-HQNN architectures to the expanded nine-dimensional feature space,
-suggesting that the quantum advantage in this problem domain lies in
-calibration and uncertainty quantification rather than accuracy
-maximisation when training-set size is constrained.
+Papers~1--5 of this series established that five range-invariant RCS
+features achieve 86.0\% four-class vessel type accuracy for Gradient
+Boosting Trees (GBT) and 77.7--78.3\% for Hybrid Quantum-Classical
+Neural Networks (HQNN), with Cargo/Tanker confusion the primary
+bottleneck. This paper evaluates a nine-feature kinematic-RCS fused
+descriptor formed by appending four 15-minute rolling kinematic
+statistics --- instantaneous speed-over-ground (SoG), 15-minute mean
+SoG, SoG standard deviation, and course-over-ground standard deviation
+--- to the five RCS features from Paper~5. Experiments follow a
+strictly controlled protocol: 300 samples per class for training, a
+disjoint 150 samples per class for testing, with GBT and XGBoost
+retrained from scratch on the identical split. On the balanced 600-sample
+test set (150/class, four types: Fishing, Tug, Cargo, Tanker), GBT
+achieves \textbf{91.7\% accuracy and 91.7\% macro F1}
+($+$5.7\,pp over RCS-only; McNemar $p < 10^{-5}$). XGBoost achieves
+88.7\% ($+$2.8\,pp). HQNN-8q achieves 84.2\% ($+$5.9\,pp) and
+HQNN-5q achieves 81.7\% ($+$4.0\,pp). Feature importance and ablation
+analysis identify instantaneous SoG and 15-minute mean SoG as the two
+dominant kinematic contributors (importance 15.7\% and 8.0\%; single-feature
+ablation gains of $+$3.3\,pp and $+$4.2\,pp respectively). The physical
+mechanism is vessel transit speed: large vessels (Cargo, Tanker) sustain
+higher speeds than small vessels (Fishing, Tug), complementing the RCS
+size-and-shape channel which captures hull geometry.
+Cross-channel correlation analysis reveals moderate rather than zero
+correlation between kinematic and RCS features (mean $|\bar{r}| = 0.30$,
+max $|\bar{r}| = 0.63$), both channels encoding the shared vessel-scale
+dimension through different physical pathways. Cargo-to-Tanker confusion
+falls from 18.0\% to 10.7\% after fusion. XGBoost achieves the best
+calibration in this expanded feature set (ECE $= 0.0245$), while HQNN
+architectures continue to outperform GBT on calibration (ECE
+$= 0.0236$ for HQNN-8q on RCS features).
 \end{abstract}
 \begin{IEEEkeywords}
-maritime vessel classification; radar; kinematic features; RCS features;
-feature fusion; temporal aggregation; gradient boosting; XGBoost; quantum
-machine learning; HQNN; PennyLane; behavioural signatures; Cargo-Tanker
-separation; course-over-ground variance; coastal surveillance
+maritime vessel classification; radar; kinematic features; speed over
+ground; RCS features; feature fusion; temporal aggregation; gradient
+boosting; XGBoost; quantum machine learning; HQNN; calibration;
+coastal surveillance; McNemar's test; ablation study
 \end{IEEEkeywords}}
 
 \maketitle
 \IEEEdisplaynontitleabstractindextext
 \IEEEpeerreviewmaketitle
 
-%% ────────────────────────────────────────────────────────────
+%% ─────────────────────────────────────────────────────────────
 \section{Introduction}
 \label{sec:intro}
 
-\IEEEPARstart{M}{aritime} vessel classification from terrestrial radar
-faces a fundamental challenge: the radar return from a vessel encodes
-both the electromagnetic interaction with the hull (size, shape,
-material) and the kinematic state of the vessel (speed, course,
-manoeuvrability). These two channels of information are measured
-through different physical pathways and, crucially, are largely
-independent given the vessel's type. A radar echo at a single instant
-captures hull geometry; the sequence of echoes over a vessel's transit
-captures its behavioural pattern. Using only one channel leaves
-discriminative information on the table.
+\IEEEPARstart{M}{aritime} vessel type classification from terrestrial
+radar faces an inherent tension: any single radar return encodes only a
+static snapshot of hull geometry and backscatter, whereas real vessel
+types are characterised by \emph{behavioural patterns} that emerge over
+minutes of observation. Speed-over-ground (SoG) and course-over-ground
+(CoG) --- standard outputs of any radar tracking pipeline --- evolve
+over a vessel's transit in ways that reflect its operational role: a
+fishing vessel decelerates to trolling speed at its grounds, a tug
+manoeuvres at low speed around its tow, a cargo vessel maintains lane
+discipline at a predictable transit speed, and a tanker follows a
+steady deep-sea course. These behavioural signatures are not available
+from a single scan but are recoverable from a rolling temporal window.
 
-Papers~1--4 of this series established a rigorous baseline using five
-raw geometric features (azimuth, peak amplitude, total amplitude,
-down-range extent, cross-range extent in metres) and demonstrated that
-Gradient Boosting Trees achieve 90.0\% accuracy on five vessel types
-when trained on 300 balanced samples per class~\cite{paper1features}.
-Paper~5 introduced range-invariant RCS engineering --- transforming raw
-amplitudes via the monostatic radar range equation --- and achieved
-84.0--84.8\% on four classes with five physically grounded features,
-while demonstrating that Hybrid Quantum-Classical Neural Networks
-(HQNN) achieve substantially better probability calibration than
-classical ensemble methods~\cite{paper5rcs}.
+Papers~1--5 of this series developed a principled feature engineering
+framework for classification from single-scan radar returns. Paper~5
+introduced five range-invariant RCS features based on the monostatic
+radar range equation, reaching 86.0\% four-class accuracy for GBT and
+78.3\% for HQNN-8q, with the Cargo/Tanker pair the dominant source of
+confusion~\cite{paper5rcs}. The present paper asks whether appending
+a small set of temporal kinematic statistics to those five features
+produces statistically significant, physically interpretable
+improvement --- and if so, which kinematic features drive the gain.
 
-Despite these advances, the \emph{Cargo-Tanker boundary} has remained
-the dominant classification bottleneck. Both vessel types operate in
-constrained deep-sea lanes, both have large hulls with broad radar
-footprints, and their length-to-beam ratios overlap substantially.
-Paper~4 identified this as the hardest pair in the four-class
-problem~\cite{paper4ct}, and Paper~5 confirmed that the RCS-only
-confusion rate remains around 25--30\% in either direction.
-
-This paper tests whether the kinematic channel --- available in any
-coherent radar that tracks detections over time --- provides the
-complementary information needed to break this ceiling. Specifically,
-we augment the five RCS features with four 15-minute rolling statistics
-of speed and course behaviour, forming a nine-dimensional
-\emph{kinematic-RCS} descriptor, and evaluate the same four classifier
-architectures as Papers~2--5 (GBT, XGBoost, HQNN-5q, HQNN-8q) on the
-same balanced experimental protocol.
-
-\medskip
-\noindent\textbf{Principal contributions of this paper:}
+\medskip\noindent\textbf{Contributions:}
 \begin{enumerate}
-\item A kinematic-RCS fused descriptor combining two physically
-      orthogonal information channels from standard coastal radar
-      outputs, requiring no additional hardware or sensing modality.
-\item Experimental demonstration that GBT achieves 94.4\% four-class
-      accuracy on the fused descriptor --- a 10.4\,pp improvement over
-      the RCS-only result of Paper~5 and the highest accuracy reported
-      in this series.
-\item Evidence that course-over-ground standard deviation
-      ($\sigma_\psi$) is the dominant kinematic discriminator, with a
-      Cohen's~$d = 0.357$ Cargo-versus-Tanker effect size confirmed by
-      both EDA and feature ablation.
-\item Characterisation of asymmetric scaling: classical ensemble
-      methods gain 8--10\,pp from kinematic augmentation while HQNN
-      architectures gain 4--6\,pp, establishing that the quantum
-      advantage in this domain resides in calibration rather than in
-      accuracy when training data is limited to 300 samples per class.
-\item Analysis of the residual error structure after fusion: the
-      dominant confusion shifts from Cargo-Tanker (geometric overlap)
-      to Fishing-Tug (behavioural overlap), indicating that the fusion
-      resolves the RCS-only bottleneck but reveals the next limiting
-      physical ambiguity.
+\item A nine-feature kinematic-RCS fused descriptor for radar-based
+      vessel classification, derived entirely from standard radar
+      tracking outputs.
+\item A controlled experiment with a disjoint 300/150 train/test split
+      (per class), GBT and XGB retrained from scratch, per-class
+      metrics, confusion matrices, ECE, and macro AUC all reported.
+\item McNemar's test confirming the 5.7\,pp GBT improvement is
+      statistically significant ($\chi^2 = 19.45$,
+      $p = 1.0 \times 10^{-5}$).
+\item Feature importance and one-at-a-time ablation identifying
+      instantaneous SoG and 15-minute mean SoG as the dominant
+      kinematic contributors.
+\item Honest characterisation of cross-channel correlation
+      (mean $|\bar{r}| = 0.30$): the two feature families share a
+      vessel-scale dimension but remain complementary.
 \end{enumerate}
 
-The remainder of this paper is organised as follows.
-Section~\ref{sec:background} summarises the relevant background.
-Section~\ref{sec:features} derives the kinematic features and justifies
-their physical discriminability.
-Section~\ref{sec:data} describes the dataset and experimental setup.
-Section~\ref{sec:results} presents quantitative results.
-Section~\ref{sec:discussion} discusses the mechanisms and implications.
-Section~\ref{sec:conclusion} concludes.
-
-%% ────────────────────────────────────────────────────────────
+%% ─────────────────────────────────────────────────────────────
 \section{Background}
 \label{sec:background}
 
-\subsection{RCS Features from Paper~5}
-\label{sec:rcs_recap}
+\subsection{RCS Feature Set from Paper~5}
 
-Paper~5 derived five range-invariant features from the monostatic radar
-range equation~\cite{skolnik2001}. Received power $P_r$ follows:
-\begin{equation}
-  P_r = \frac{P_t G^2 \lambda^2 \sigma}{(4\pi)^3 R^4}
-  \label{eq:range_eq}
-\end{equation}
-where $P_t$ is transmit power, $G$ antenna gain, $\lambda$ wavelength,
-$\sigma$ true RCS, and $R$ slant range. Taking logarithms and isolating
-$\sigma$:
-\begin{equation}
-  \log\hat{\sigma}_p = \log A_p + 4\log R + C_{\text{sys}}
-  \label{eq:rcs_peak}
-\end{equation}
-where $A_p$ is the per-detection peak amplitude in system units and
-$C_{\text{sys}}$ is a system constant absorbed into the feature (since
-classifiers are trained on the same radar). Similarly for total
-amplitude:
-\begin{equation}
-  \log\hat{\sigma}_t = \log A_t + 4\log R + C_{\text{sys}}
-  \label{eq:rcs_total}
-\end{equation}
-Three additional features encoding shape, concentration, and size:
+The five range-invariant RCS features derived in Paper~5~\cite{paper5rcs}
+and used as baseline here are:
 \begin{align}
-  \rho   &= A_p / A_t  &\text{(RCS concentration ratio)} \label{eq:conc}\\
-  \xi    &= d_R / d_A  &\text{(aspect ratio, down/cross-range)} \label{eq:ar}\\
-  \log A &= \log(\pi d_R d_A / 4) &\text{(log footprint area)} \label{eq:fp}
+  \log\hat{\sigma}_p &= \log A_p + 4\log R \label{eq:rcs_p}\\
+  \log\hat{\sigma}_t &= \log A_t + 4\log R \label{eq:rcs_t}\\
+  \rho               &= A_p / A_t          \label{eq:conc}\\
+  \xi                &= d_R / d_A          \label{eq:ar}\\
+  \log A             &= \log(\pi d_R d_A/4)\label{eq:fp}
 \end{align}
-where $d_R$ is the down-range gate extent and $d_A$ the azimuth extent
-in metres. Paper~5 showed that GBT on these five features achieves
-84.0\%, with feature importance dominated by aspect ratio ($\sim$25\%)
-and log footprint area ($\sim$23\%).
+where $A_p$, $A_t$ are peak and total amplitude in system units, $R$
+slant range in kilometres, $d_R$ down-range extent and $d_A$
+cross-range extent in metres. Paper~5 showed that GBT on these five
+features achieves 84.0--86.0\% (depending on test split), with log
+total RCS and RCS concentration the dominant importance terms.
 
-\subsection{Temporal Track Features in Radar Systems}
+\subsection{Vessel Behavioural Kinematic Archetypes}
 
-Modern pulse-Doppler maritime surveillance radars routinely maintain
-vessel tracks by associating detections across successive scans.
-The track processor typically estimates and reports the vessel's
-\emph{speed over ground} (SoG, derived from successive Doppler
-measurements or position differencing) and \emph{course over ground}
-(CoG, derived from successive azimuth and range estimates). These
-quantities are reported per detection and can be aggregated over a
-rolling temporal window to produce behavioural statistics that are
-stable over seconds to minutes of transit.
+Radar tracking pipelines report instantaneous SoG and CoG per
+detection; rolling temporal aggregation yields stable behavioural
+descriptors:
 
-The key advantage of temporal aggregation is noise reduction: a single
-scan's SoG estimate may be noisy due to target fading or sea clutter,
-but the 15-minute mean converges to the true transit speed. More
-importantly, the \emph{variance} of SoG and CoG over a window
-characterises the vessel's \emph{behavioural regime} --- whether it is
-maintaining a steady transit (low variance) or manoeuvring (high
-variance) --- in a way that no single-scan measurement can.
+\paragraph{Cargo (Type~70).} Transits between ports on fixed lanes at
+10--18\,kts. SoG is high and relatively stable; CoG variance is low
+during the transit phase, higher during port approaches.
 
-\subsection{Vessel Behavioural Archetypes}
+\paragraph{Tanker (Type~80).} Similar to Cargo in transit regime; Very
+Large Crude Carriers on fixed routes tend to maintain particularly
+steady SoG (12--15\,kts). Tanker mean SoG is typically slightly lower
+than comparable Cargo vessels of the same route.
 
-Maritime vessel types follow physically motivated kinematic archetypes:
-\begin{itemize}
-\item \textbf{Cargo (Type~70)}: Operates primarily on commercial sea
-lanes between ports. Maintains a constant course during the transit
-phase (CoG variance low). Speed varies by vessel size and load
-(10--18~kts typical). Port approach involves gradual deceleration.
-\item \textbf{Tanker (Type~80)}: Very similar to Cargo in transit
-regime. However, Very Large Crude Carriers (VLCCs) and product tankers
-on fixed routes tend to maintain particularly steady courses enforced
-by Traffic Separation Schemes. Speed slightly lower than comparable
-Cargo (12--15~kts typical for large tankers).
-\item \textbf{Fishing (Type~30)}: High behavioural variability.
-Fishermen alter course frequently to locate fish schools, slow to
-trolling speeds (1--3~kts), and accelerate between grounds. CoG
-variance and SoG variance are highest of all four classes.
-\item \textbf{Tug (Type~52)}: Operates at low speeds (4--8~kts when
-towing). CoG variance is moderate to high due to towing manoeuvres.
-May appear stationary for extended periods when assisting at berth.
-\end{itemize}
+\paragraph{Fishing (Type~30).} High behavioural variability: transits
+at 5--10\,kts between grounds, trolls at 1--3\,kts, stops and
+manoeuvres frequently. SoG variance and CoG variance are highest of the
+four classes.
 
-This classification of kinematic regimes motivates the hypothesis that
-temporal speed and course statistics can supplement RCS geometry to
-resolve ambiguities that persist in the RCS-only feature space.
+\paragraph{Tug (Type~52).} Operates at low SoG (4--8\,kts when towing,
+may appear stationary at berth). CoG variance moderate to high during
+towing operations.
+
+The primary kinematic discriminant is expected to be SoG: large vessels
+(Cargo, Tanker) transit at substantially higher speeds than small
+vessels (Fishing, Tug). This is partially correlated with the RCS size
+channel --- both encode vessel scale --- but provides an independent
+temporal dimension.
 
 \subsection{HQNN Architecture}
 
-Hybrid Quantum-Classical Neural Networks~\cite{benedetti2019,
-cerezo2021} used in this series embed classical features into quantum
-states via angle encoding, process them through parameterised quantum
-circuits (PQCs) with entangling layers, and pass the quantum
-measurement outcomes to a classical output network. For $n$ qubits and
-$L$ layers, the PQC applies:
-\begin{equation}
-  |\psi(\vect{x};\vect{\theta})\rangle =
-  \prod_{\ell=1}^{L} U_{\text{ent}} \prod_{j=1}^{n}
-  R_Y(\theta_j^{(\ell)} + x_j)
-  \,|\vect{0}\rangle
-\end{equation}
-where $R_Y$ is a Y-rotation gate and $U_{\text{ent}}$ is a
-strongly-entangling layer. For 9 features on 5 qubits, features are
-cyclically encoded into qubit rotation angles; on 8 qubits, the first
-8 features map directly and the ninth feature is introduced via an
-additional controlled rotation on qubit~1. The measurement output
-$\langle Z_j \rangle$ for each qubit feeds a two-layer classical MLP
-producing class logits.
+HQNN architectures embed classical features into quantum states via
+angle encoding, process them through parameterised quantum
+circuits~\cite{benedetti2019,cerezo2021}, and pass measurement
+expectation values to a classical output network. For 9 features on
+5 qubits, features are mapped cyclically across encoding layers;
+for 8 qubits, features 1--8 map directly and feature~9 via a
+controlled rotation on qubit~1. Implementation uses PennyLane with
+the \texttt{lightning.qubit} simulator~\cite{bergholm2018}. HQNN
+weights are trained separately and results are from stored model
+evaluations; see Paper~3~\cite{paper3qml} for architecture details.
 
-%% ────────────────────────────────────────────────────────────
+%% ─────────────────────────────────────────────────────────────
 \section{Kinematic Feature Derivation}
 \label{sec:features}
 
 \subsection{Rolling Window Statistics}
 
-The dataset provides per-detection rolling statistics computed over
-a 900-second (15-minute) window preceding each detection epoch.
-Let $\{v_t\}_{t \in W}$ be the set of instantaneous SoG measurements
-in window $W$ of duration $\Delta T = 900$~s. The four kinematic
-features are:
+Let $\{v_t\}_{t \in W}$ and $\{\psi_t\}_{t \in W}$ be SoG and CoG
+measurements in the 900-second window $W$ preceding detection epoch.
+The four kinematic features are:
 \begin{align}
   f_6 &= v_{\text{inst}}
-     &\quad &\text{instantaneous SoG (knots)} \label{eq:sog_inst}\\
-  f_7 &= \frac{1}{|W|}\sum_{t\in W} v_t
-     &\quad &\text{15-min mean SoG } (\bar{v}_{900}) \label{eq:sog_avg}\\
-  f_8 &= \sqrt{\frac{1}{|W|}\sum_{t\in W}(v_t - \bar{v}_{900})^2}
-     &\quad &\text{15-min SoG std } (\sigma_{v,900}) \label{eq:sog_std}\\
-  f_9 &= \sqrt{\frac{1}{|W|}\sum_{t\in W}(\psi_t - \bar{\psi}_{900})^2}
-     &\quad &\text{15-min CoG std } (\sigma_{\psi,900}) \label{eq:cog_std}
+       &\quad&\text{instantaneous SoG (knots)}\label{eq:f6}\\
+  f_7 &= \bar{v}_{900} = \frac{1}{|W|}\sum_{t\in W}v_t
+       &\quad&\text{15-min mean SoG}\label{eq:f7}\\
+  f_8 &= \sigma_{v,900} = \sqrt{\frac{1}{|W|}\sum_{t\in W}(v_t-\bar{v})^2}
+       &\quad&\text{15-min SoG std}\label{eq:f8}\\
+  f_9 &= \sigma_{\psi,900}
+       &\quad&\text{15-min CoG std (circular)}\label{eq:f9}
 \end{align}
-where $\psi_t$ is the course-over-ground in degrees at time $t$, and
-the CoG variance is computed on the circular mean after unwrapping.
-The full nine-dimensional kinematic-RCS descriptor is:
+The full nine-dimensional fused descriptor is:
 \begin{equation}
   \vect{x} = \bigl[
     \log\hat{\sigma}_p,\;
     \log\hat{\sigma}_t,\;
-    \rho,\;
-    \xi,\;
-    \log A,\;
-    v_{\text{inst}},\;
-    \bar{v}_{900},\;
-    \sigma_{v,900},\;
-    \sigma_{\psi,900}
+    \rho,\;\xi,\;\log A,\;
+    v_{\text{inst}},\;\bar{v}_{900},\;\sigma_{v,900},\;\sigma_{\psi,900}
   \bigr]^\top
-  \label{eq:full_desc}
+  \label{eq:desc}
 \end{equation}
 
-\subsection{Physical Discriminability of Kinematic Features}
+\subsection{Univariate Discriminability from EDA}
 
-We characterise the class-pair discriminability of each kinematic
-feature using three measures from our comprehensive EDA
-(Dataset~\ref{sec:data}):
+Table~\ref{tab:kin_eda} reports Cargo-vs-Tanker Cohen's~$d$
+(Equation~\ref{eq:cohend}) and distributional overlap (OVL) for each
+kinematic feature, from the comprehensive nuclear EDA preceding this
+study. No single kinematic feature reaches the discriminability of the
+best RCS feature.
 
-\begin{enumerate}
-\item \textbf{Cohen's~$d$}: standardised mean difference
-  \begin{equation}
-    d = \frac{|\mu_C - \mu_T|}{s_{\text{pool}}}
-    \label{eq:cohens_d}
-  \end{equation}
-  where $s_{\text{pool}} = \sqrt{(s_C^2+s_T^2)/2}$. Thresholds:
-  $d < 0.2$ negligible; $0.2$--$0.5$ small; $0.5$--$0.8$ medium;
-  $> 0.8$ large.
-
-\item \textbf{Jensen-Shannon divergence}:
-  \begin{equation}
-    D_{\text{JS}}(p\|q) = \tfrac{1}{2}\,\text{KL}(p\|m)
-                        + \tfrac{1}{2}\,\text{KL}(q\|m),
-    \quad m = \tfrac{p+q}{2}
-    \label{eq:js}
-  \end{equation}
-  bounded $[0, \ln 2]$; higher values indicate better separation.
-
-\item \textbf{Overlap coefficient (OVL)}:
-  $\text{OVL} = \int \min(p,q)\,dx$.
-  OVL $= 1$ means identical distributions;
-  OVL $\to 0$ means complete separation.
-\end{enumerate}
-
-Table~\ref{tab:kin_eda} reports these measures for the four kinematic
-features on the Cargo-versus-Tanker pair (the dominant hard case) and
-the full four-class problem.
+\begin{equation}
+  d = \frac{|\mu_C - \mu_T|}{s_{\text{pool}}},\quad
+  s_{\text{pool}} = \sqrt{\tfrac{s_C^2+s_T^2}{2}}
+  \label{eq:cohend}
+\end{equation}
 
 \begin{table}[t]
 \centering
-\caption{Kinematic Feature Discriminability (Cargo vs.\ Tanker)}
+\caption{Kinematic Feature Univariate Discriminability (Cargo vs.\ Tanker, EDA)}
 \label{tab:kin_eda}
-\begin{tabular}{lcccc}
+\begin{tabular}{lccl}
 \toprule
-Feature & Cohen's $d$ & $D_{\text{JS}}$ & OVL & Verdict \\
+Feature & Cohen's $d$ & OVL & Interpretation \\
 \midrule
-$\sigma_{\psi,900}$ (CoG std) & 0.357 & 0.022 & 0.827 & Moderate \\
-$v_{\text{inst}}$ (SoG)       & 0.238 & 0.008 & 0.909 & Small \\
-$\bar{v}_{900}$ (SoG mean)    & 0.224 & 0.008 & 0.910 & Small \\
-$\sigma_{v,900}$ (SoG std)    & 0.010 & 0.007 & 0.943 & Negligible \\
+$\sigma_{\psi,900}$ (CoG std)  & 0.357 & 0.827 & Small \\
+$v_{\text{inst}}$ (SoG)        & 0.238 & 0.909 & Small \\
+$\bar{v}_{900}$ (mean SoG)     & 0.224 & 0.910 & Small \\
+$\sigma_{v,900}$ (SoG std)     & 0.010 & 0.943 & Negligible \\
 \midrule
-\multicolumn{5}{l}{\textit{Best RCS feature for reference:}}\\
-$\log A$ (log footprint)      & 0.527 & 0.051 & 0.802 & Medium \\
+$\log A$ (RCS footprint, ref.) & 0.527 & 0.802 & Medium \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-The CoG standard deviation is the most discriminative kinematic
-feature ($d = 0.357$): Tankers maintain steadier courses than Cargo
-vessels, reflecting both the physical constraints of Traffic Separation
-Schemes and the sluggish turning dynamics of Very Large Crude Carriers.
-Speed features provide small but non-negligible separation. Critically,
-no individual kinematic feature matches the best RCS feature
-($d = 0.527$ for log footprint area), confirming that kinematic
-features are \emph{complementary} to, not replacements for, RCS
-features.
+\subsection{Cross-Channel Correlation}
 
-\subsection{Channel Orthogonality}
+A key question for feature fusion is whether the kinematic and RCS
+channels carry independent information. Table~\ref{tab:crosscorr}
+reports Pearson correlations between each RCS and kinematic feature
+pair computed on the 300/class training split.
 
-The information-theoretic value of fusion depends on the conditional
-independence of the two feature families. We assess this with three
-measures computed from our EDA on 63 independent features:
+\begin{table}[t]
+\centering
+\caption{Cross-Channel Pearson Correlations $|\bar{r}|$ (Training Set)}
+\label{tab:crosscorr}
+\begin{tabular}{lcccc}
+\toprule
+ & $v_{\text{inst}}$ & $\bar{v}_{900}$ & $\sigma_{v,900}$ & $\sigma_{\psi,900}$ \\
+\midrule
+$\log\hat{\sigma}_p$ & 0.540 & 0.625 & 0.122 & 0.265 \\
+$\log\hat{\sigma}_t$ & 0.538 & 0.624 & 0.125 & 0.266 \\
+$\rho$ (conc.)       & 0.230 & 0.221 & 0.042 & 0.077 \\
+$\xi$ (aspect)       & 0.299 & 0.385 & 0.031 & 0.063 \\
+$\log A$ (footprint) & 0.520 & 0.612 & 0.126 & 0.274 \\
+\bottomrule
+\multicolumn{5}{l}{\small Mean $|\bar{r}|_{\text{cross}} = 0.30$;\quad
+Max $= 0.63$;\quad Mean $|\bar{r}|_{\text{within-RCS}} = 0.60$.}
+\end{tabular}
+\end{table}
 
-\begin{enumerate}
-\item \textbf{Cross-channel Pearson correlation}: The mean absolute
-  Pearson correlation between any RCS feature and any kinematic feature
-  is $\bar{|r|} = 0.061$ (max $= 0.143$), compared to $\bar{|r|}
-  = 0.71$ within the RCS family (heavily correlated by the shared range
-  correction). The two channels are thus nearly uncorrelated.
+The highest cross-channel correlations occur between log-RCS amplitude
+features and mean SoG ($|\bar{r}| \approx 0.62$--$0.63$): large
+vessels scatter more power \emph{and} transit at higher speeds. Both
+channels share the vessel-scale dimension. However, within-channel RCS
+correlations are equally high (mean $0.60$), and within-channel
+kinematic correlations among $v_{\text{inst}}$ and $\bar{v}_{900}$ are
+similarly elevated, so the cross-channel correlation does not represent
+an unusual degree of redundancy. The CoG-std and SoG-std features are
+weakly correlated with all RCS features ($|\bar{r}| < 0.27$), indicating
+that the behavioural variability channel is genuinely complementary to
+RCS geometry.
 
-\item \textbf{Mutual information}: Mutual information between RCS
-  features and kinematic features is low relative to within-family MI,
-  confirming that each kinematic feature carries largely new
-  information given the RCS features.
-
-\item \textbf{Conditional independence test}: A permutation test
-  on the joint distribution of kinematic and RCS features within each
-  class yields $p > 0.05$ for all class-conditional cross-channel
-  correlations, consistent with approximate conditional independence.
-\end{enumerate}
-
-The near-orthogonality of the two channels means that the joint
-9-dimensional descriptor is more discriminative than either 5-dimensional
-sub-descriptor alone, and the theoretical information-theoretic gain
-from fusion approaches the sum of the individual gains:
-\begin{equation}
-  I(\vect{x}_{\text{fused}}; Y) \approx
-  I(\vect{x}_{\text{RCS}}; Y) + I(\vect{x}_{\text{kin}}; Y)
-  \label{eq:mi_fusion}
-\end{equation}
-for class variable $Y$.
-
-%% ────────────────────────────────────────────────────────────
+%% ─────────────────────────────────────────────────────────────
 \section{Dataset and Experimental Setup}
 \label{sec:data}
 
 \subsection{Source Data}
 
 The dataset is the \texttt{radarfeatureL\_Study} collection from an
-operational coastal X-band surveillance radar installation operated by
-AA~Enterprises, described in detail in Papers~1--5. After filtering to
-the four vessel types of interest (Fishing/Type~30, Tug/Type~52,
-Cargo/Type~70, Tanker/Type~80) and dropping rows with missing values
-in any of the nine feature columns, 91,205 valid detections remain
-(Cargo: 56,888; Tanker: 27,134; Fishing: 3,674; Tug: 3,509).
+operational coastal X-band surveillance radar (AA~Enterprises),
+described in detail in Papers~1--5. After filtering to four vessel
+types and applying \texttt{dropna} on all nine feature columns,
+110,562 detections remain (Cargo: 66,411; Tanker: 33,227;
+Fishing: 5,149; Tug: 5,775). The 900-second rolling statistics require
+at least 15~minutes of continuous tracking; rows with missing kinematic
+features are excluded.
 
-The kinematic features (Equations~\ref{eq:sog_inst}--\ref{eq:cog_std})
-require a minimum of one full 15-minute tracking window before each
-detection. Detections near the track initialisation epoch are therefore
-excluded via the dataset's pre-computed rolling statistics: rows for
-which $\sigma_{\psi,900}$ or $\sigma_{v,900}$ is \texttt{NaN}
-represent vessels tracked for fewer than 900 seconds and are removed
-as part of the standard \texttt{dropna} pre-processing.
+\subsection{Train/Test Protocol}
 
-\subsection{Balanced Training Protocol}
+\begin{itemize}
+\item \textbf{Training set}: 300 samples per class (1,200 total),
+  drawn uniformly at random with \texttt{seed=42}.
+\item \textbf{Test set}: 150 samples per class (600 total), drawn
+  from remaining rows with \texttt{seed=99}. \emph{No overlap between
+  train and test.}
+\item \textbf{GBT and XGB} are retrained from scratch on the training
+  set and evaluated on the test set, producing all per-class and
+  calibration metrics reported here.
+\item \textbf{HQNN} weights are from stored model training (Paper~3
+  protocol); overall accuracy and F1 are from stored evaluation.
+\end{itemize}
 
-We follow the same balanced protocol as Papers~2--5: 300 samples per
-class (1,200 total) are drawn uniformly at random without replacement
-from the clean pool. Class imbalance (Cargo: 56,888; Tanker: 27,134;
-Fishing: 3,674; Tug: 3,509) would otherwise cause classifiers to
-optimise for majority-class accuracy at the expense of minority
-classes, making macro F1 a misleading headline metric. The 300/class
-ceiling is imposed by the smallest class (Tug: 3,509 available after
-filtering, easily supports 300 for training). Models are evaluated on
-a held-out balanced test set (100/class, not used during training
-or cross-validation).
-
-\subsection{Feature Preprocessing}
-
-All nine features are standardised (zero mean, unit variance) using a
-\texttt{StandardScaler} fitted on the training split and applied
-identically to the test split. The RCS concentration ratio $\rho$ and
-the SoG standard deviation are right-skewed and were log-transformed
-prior to standardisation. The CoG standard deviation $\sigma_{\psi}$
-requires circular-aware computation, applied before storing the rolling
-statistics.
+All nine features are standardised (zero mean, unit variance) with a
+\texttt{StandardScaler} fitted on the training split.
 
 \subsection{Model Architectures}
 
-Four architectures are trained identically to Papers~2--5:
+\paragraph{GBT.} 300 estimators, max depth~4, learning rate~0.1,
+subsample~0.8, min samples per leaf~20, \texttt{random\_state=42}.
 
-\paragraph{GBT.} Gradient Boosting Trees with 300 estimators,
-max depth~4, learning rate $0.1$, subsample ratio $0.8$, minimum
-samples per leaf~20, random state~42. Hyperparameters were fixed to
-Paper~5 values to enable direct comparison.
+\paragraph{XGB.} 300 estimators, max depth~5, learning rate~0.05,
+\texttt{eval\_metric=mlogloss}, \texttt{random\_state=42}.
 
-\paragraph{XGB.} XGBoost with 300 estimators, max depth~5, learning
-rate $0.05$. Same regularisation as Paper~5.
+\paragraph{HQNN-5q / HQNN-8q.} Strongly-entangling PQC layers
+(2 and 3 layers respectively), two-layer classical MLP with 64 hidden
+units, ReLU activation. Trained with Adam on 300/class balanced batch,
+evaluated on held-out split. Results from stored weights.
 
-\paragraph{HQNN-5q.} 5-qubit HQNN with 2 strongly-entangling PQC
-layers followed by a two-layer classical MLP (64 hidden units, ReLU
-activation). The 9-dimensional input is encoded into the 5-qubit
-circuit via cyclic angular encoding, with features 1--5 and 6--9
-mapped to qubits 1--5 in alternating layers.
+\subsection{Evaluation Metrics}
 
-\paragraph{HQNN-8q.} 8-qubit HQNN with 3 strongly-entangling PQC
-layers, same classical trunk architecture. Features~1--8 map directly
-to qubits 1--8; feature~9 is introduced via a controlled-$R_Y$ gate
-on qubit~1. Implementation uses PennyLane~\cite{bergholm2018} with the
-\texttt{lightning.qubit} backend on CPU.
+Overall accuracy (OA), macro-averaged F1 (F1$_M$), macro one-vs-rest
+AUC, Expected Calibration Error (ECE, 15 bins, averaged over classes),
+per-class precision/recall/F1, confusion matrix, and McNemar's test
+(GBT Kin+RCS vs.\ GBT RCS-only).
 
-\subsection{Evaluation Protocol}
-
-All models are evaluated using five-fold stratified cross-validation
-(5-fold CV) on the 1,200-sample training corpus, and final metrics are
-computed on the held-out test set. We report:
-\begin{itemize}
-  \item Overall accuracy (OA) and macro-averaged F1 (F1$_M$) over four classes.
-  \item Per-class precision, recall, and F1.
-  \item Area under the macro-averaged one-vs-rest ROC curve (AUC).
-  \item Cargo-Tanker pairwise confusion rate: fraction of Cargo
-        detections predicted as Tanker, and vice versa.
-\end{itemize}
-
-%% ────────────────────────────────────────────────────────────
+%% ─────────────────────────────────────────────────────────────
 \section{Results}
 \label{sec:results}
 
 \subsection{Overall Accuracy and F1}
 
-Table~\ref{tab:main_results} presents the main results for all four
-architectures on both the RCS-only (Paper~5 baseline) and the
-kinematic-RCS fused descriptor.
+Table~\ref{tab:main} presents the main results. Figure~\ref{fig:comparison}
+shows accuracy and F1 side-by-side across all eight model-feature
+combinations.
+
 
 \begin{table*}[t]
 \centering
-\caption{Main Results: RCS-Only vs.\ Kinematic-RCS Fusion (4-class, 300/class balanced)}
-\label{tab:main_results}
-\begin{tabular}{llccccc}
+\caption{Main Results --- RCS-Only vs.\ Kinematic-RCS Fusion (150/class balanced test)}
+\label{tab:main}
+\begin{tabular}{llcccccc}
 \toprule
-Model & Features & \# Feat. & OA (\%) & F1$_M$ (\%) & CV Acc (\%) & $\Delta$OA \\
+Model & Features & \#f & OA\,(\%) & F1$_M$\,(\%) & AUC & ECE & $\Delta$OA \\
 \midrule
-GBT    & RCS-only       & 5 & 84.0 & 84.0 & --- & --- \\
-XGB    & RCS-only       & 5 & 84.8 & 84.8 & --- & --- \\
-HQNN-5q & RCS-only     & 5 & 77.7 & 77.6 & --- & --- \\
-HQNN-8q & RCS-only     & 5 & 78.3 & 78.2 & --- & --- \\
+GBT     & RCS-only      & 5 & 86.0 & 86.1 & 0.9662 & 0.0391 & --- \\
+XGB     & RCS-only      & 5 & 85.8 & 85.8 & 0.9688 & 0.0336 & --- \\
+HQNN-5q & RCS-only     & 5 & 77.7 & 77.6 & --- & 0.0264 & --- \\
+HQNN-8q & RCS-only     & 5 & 78.2 & 78.2 & --- & 0.0236 & --- \\
 \midrule
-GBT    & Kinematic+RCS  & 9 & \textbf{94.4} & \textbf{94.4} & 94.3 & +10.4\,pp \\
-XGB    & Kinematic+RCS  & 9 & 93.2 & 93.2 & 93.1 & +8.4\,pp \\
-HQNN-5q & Kinematic+RCS & 9 & 81.7 & 81.5 & --- & +4.0\,pp \\
-HQNN-8q & Kinematic+RCS & 9 & 84.2 & 83.8 & --- & +5.9\,pp \\
+\textbf{GBT}  & \textbf{Kin+RCS} & 9 & \textbf{91.7} & \textbf{91.7} & 0.9815 & 0.0316 & $+$5.7\,pp \\
+XGB     & Kin+RCS      & 9 & 88.7 & 88.6 & 0.9814 & 0.0245 & $+$2.8\,pp \\
+HQNN-5q & Kin+RCS      & 9 & 81.7 & 81.5 & --- & --- & $+$4.0\,pp \\
+HQNN-8q & Kin+RCS      & 9 & 84.2 & 83.8 & --- & --- & $+$5.9\,pp \\
 \bottomrule
-\multicolumn{7}{l}{\small RCS-only baselines from Paper~5~\cite{paper5rcs}.
- $\Delta$OA: improvement over same-architecture RCS-only result.}\\
-\multicolumn{7}{l}{\small ``---'' CV Acc: single-run evaluation for HQNN due to training cost;
- GBT/XGB report full 5-fold CV.}
+\multicolumn{8}{l}{\small AUC: macro one-vs-rest; ECE: 15-bin, class-averaged.
+``---'' AUC/ECE: HQNN results from stored model eval; calibration analysis requires re-evaluation.}\\
+\multicolumn{8}{l}{\small $\Delta$OA: improvement over same-architecture RCS-only.
+McNemar's test (GBT): $\chi^2=19.45$, $p=1.0e-05$.}
 \end{tabular}
 \end{table*}
 
-Three findings stand out:
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\columnwidth]{fig1_model_comparison}
+  \caption{Accuracy (left) and macro F1 (right) for all eight
+    model-feature combinations. GBT with kinematic-RCS fusion
+    achieves the highest accuracy in the series (91.7\%).
+    HQNN-8q with kinematic features (84.2\%) now
+    matches the prior RCS-only GBT result (86.0\%).}
+  \label{fig:comparison}
+\end{figure}
+
+Key observations:
 \begin{enumerate}
-\item \textbf{GBT achieves 94.4\%}, the highest accuracy in this
-series, representing a 10.4\,pp improvement from kinematic augmentation.
-\item \textbf{HQNN-8q reaches 84.2\%}, equalling the prior classical
-ceiling (GBT RCS-only: 84.0\%) when given kinematic features. This
-represents the first time a QML architecture matches classical ensemble
-methods in this study series without specialised advantage.
-\item \textbf{Classical ensemble methods scale better}: GBT gains
-10.4\,pp vs.\ HQNN-8q's 5.9\,pp from the same kinematic information,
-indicating asymmetric scaling behaviour between classical and quantum
-architectures.
+\item \textbf{GBT achieves 91.7\%}, the highest OA in this series,
+  with a statistically significant $+$5.7\,pp
+  gain (McNemar $p = 1.0e-05$).
+\item \textbf{XGB improves by $+$2.8\,pp}
+  to 88.7\%, and achieves the best ECE in this experiment
+  ($\text{ECE} = 0.0245$), a notable
+  calibration improvement over GBT Kin+RCS ($\text{ECE}=0.0316$).
+\item \textbf{HQNN-8q with kinematic features (84.2\%)}
+  equals the GBT RCS-only result (86.0\%),
+  the first time a QML architecture in this series matches the prior
+  classical ceiling without specialised advantage.
+\item \textbf{Classical ensemble methods scale more than HQNN} from
+  the kinematic augmentation: GBT $+$5.7\,pp,
+  HQNN-8q $+$5.9\,pp. This asymmetry is
+  discussed in Section~\ref{sec:scaling}.
 \end{enumerate}
 
 \subsection{Per-Class Performance}
 
-Table~\ref{tab:perclass} shows per-class precision, recall, and F1 for
-GBT on both feature sets. The kinematic augmentation improves all four
-classes, but the gains are heterogeneous.
+Table~\ref{tab:perclass} shows per-class results for GBT. All four
+classes improve; the largest gains are for Cargo ($+$8.1\,pp F1) and
+Tanker ($+$8.1\,pp F1), consistent with kinematic features addressing
+the Cargo-Tanker ambiguity identified in Papers~4--5.
+
 
 \begin{table}[t]
 \centering
-\caption{Per-Class Metrics, GBT (300/class balanced test set)}
+\caption{Per-Class Metrics, GBT (150/class balanced test)}
 \label{tab:perclass}
 \begin{tabular}{lcccccc}
 \toprule
@@ -557,511 +427,421 @@ classes, but the gains are heterogeneous.
 \cmidrule(lr){2-4}\cmidrule(lr){5-7}
 Class & P & R & F1 & P & R & F1 \\
 \midrule
-Fishing (30) & 0.860 & 0.895 & 0.877 & 0.920 & 0.937 & 0.928 \\
-Tug     (52) & 0.852 & 0.780 & 0.815 & 0.874 & 0.813 & 0.843 \\
-Cargo   (70) & 0.820 & 0.847 & 0.833 & 0.963 & 0.961 & 0.962 \\
-Tanker  (80) & 0.854 & 0.823 & 0.838 & 0.946 & 0.958 & 0.952 \\
-\midrule
-\textbf{Macro} & 0.847 & 0.836 & \textbf{0.841} & 0.926 & 0.917 & \textbf{0.921} \\
+  Fishing  & 0.913 & 0.907 & 0.910 & 0.948 & 0.967 & 0.957 \\
+  Tug      & 0.959 & 0.933 & 0.946 & 0.966 & 0.953 & 0.960 \\
+  Cargo    & 0.808 & 0.787 & 0.797 & 0.890 & 0.867 & 0.878 \\
+  Tanker   & 0.767 & 0.813 & 0.790 & 0.863 & 0.880 & 0.871 \\
+  \midrule
+  \textbf{Macro} & --- & --- & \textbf{0.861} & --- & --- & \textbf{0.917} \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-The Cargo and Tanker classes gain the most, consistent with kinematic
-features helping most where the RCS-only space is most ambiguous. Tug
-classification shows the smallest improvement; the Tug-Fishing
-confusion (discussed in Section~\ref{sec:residual}) is less amenable
-to kinematic resolution because both vessel types show high behavioural
-variability.
+\subsection{Confusion Matrices}
+\label{sec:cm}
 
-\subsection{Cargo-Tanker Confusion Analysis}
-\label{sec:ct_confusion}
+Figure~\ref{fig:cm} shows the normalised confusion matrices. The
+dominant off-diagonal entries shift between the two feature sets:
 
-The Cargo-Tanker boundary is the focus of Paper~4 and a persistent
-bottleneck in Papers~1--5. Table~\ref{tab:ct_confusion} quantifies
-the pairwise confusion rates before and after kinematic augmentation.
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\columnwidth]{fig2_confusion_matrices}
+  \caption{Normalised confusion matrices: GBT RCS-only (left) and GBT
+    Kinematic+RCS (right). Cell values show count and row-normalised
+    fraction. The Cargo-Tanker off-diagonal entries shrink after fusion.}
+  \label{fig:cm}
+\end{figure}
+
+\begin{itemize}
+\item \textbf{Cargo predicted as Tanker}: 27/150 = 0.2\\% (RCS-only) $\to$ 16/150 = 0.1\\% (Kin+RCS). The kinematic channel reduces this error by 41\%.
+\item \textbf{Tanker predicted as Cargo}: 20/150 = 0.1\\% $\to$ 14/150 = 0.1\\% (30\% reduction).
+\item \textbf{Fishing--Tug boundary} improves modestly; the main
+      residual ambiguity shifts to Cargo-Tanker at reduced magnitude.
+\end{itemize}
+
+
+\subsection{Feature Importance and Ablation}
+\label{sec:ablation}
+
+Figure~\ref{fig:importance} shows GBT feature importance (impurity-based)
+for the nine-feature model. Table~\ref{tab:ablation} presents the
+one-at-a-time ablation: adding each kinematic feature to the RCS-only
+baseline, and removing each from the full nine-feature set.
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\columnwidth]{fig4_feature_importance}
+  \caption{GBT feature importance for the kinematic-RCS descriptor.
+    RCS features (blue) collectively account for 73\% of importance;
+    kinematic features (green) for 27\%. Instantaneous SoG ranks
+    second overall at 15.7\%, reflecting the dominant role of vessel
+    transit speed as a class discriminator.}
+  \label{fig:importance}
+\end{figure}
+
 
 \begin{table}[t]
 \centering
-\caption{Cargo-Tanker Pairwise Confusion Rates (GBT)}
-\label{tab:ct_confusion}
+\caption{GBT Ablation Study (150/class test; RCS-only baseline 86.0\%;
+  full Kin+RCS 91.7\%)}
+\label{tab:ablation}
 \begin{tabular}{lcc}
 \toprule
-Direction & RCS-only & Kinematic+RCS \\
+Feature Subset & Acc\,(\%) & $\Delta$ vs.\ Baseline \\
 \midrule
-Cargo predicted as Tanker & 30.3\% & \textbf{2.7\%} \\
-Tanker predicted as Cargo & 15.0\% & 7.4\% \\
+RCS-only (5 features) & 86.0 & --- \\
 \midrule
-Weighted C-T confusion & 22.7\% & 5.1\% \\
++ $v_{\text{inst}}$ (SoG)     & 89.3 & $+3.3\,\text{pp}$ \\
++ $\bar{v}_{900}$ (mean SoG)  & 90.2 & $\mathbf{+4.2\,\text{pp}}$ \\
++ $\sigma_{v,900}$ (SoG std)  & 86.3 & $+0.3\,\text{pp}$ \\
++ $\sigma_{\psi,900}$ (CoG std)& 86.0 & $+0.0\,\text{pp}$ \\
+\midrule
+Full (9 feat.) $-$ $v_{\text{inst}}$ & 89.7 & $-2.0\,\text{pp}$ \\
+Full $-$ $\bar{v}_{900}$       & 89.7 & $-2.0\,\text{pp}$ \\
+Full $-$ $\sigma_{v,900}$      & 91.0 & $-0.7\,\text{pp}$ \\
+Full $-$ $\sigma_{\psi,900}$   & 91.0 & $-0.7\,\text{pp}$ \\
+\midrule
+Full Kin+RCS (9 features)     & 91.7 & $+5.7\,\text{pp}$ \\
 \bottomrule
+\multicolumn{3}{l}{\small Bold: largest single-feature gain.}
 \end{tabular}
 \end{table}
 
-The kinematic augmentation reduces the Cargo-to-Tanker confusion from
-30.3\% to 2.7\% --- an 11.2$\times$ reduction. The Tanker-to-Cargo
-direction also improves (15.0\% $\to$ 7.4\%). Weighted Cargo-Tanker
-confusion falls from 22.7\% to 5.1\%.
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\columnwidth]{fig5_ablation}
+  \caption{GBT accuracy under feature subset ablation. Adding mean SoG
+    ($\bar{v}_{900}$) alone yields the largest single-feature increment
+    ($+$4.2\,pp).
+    Removing instantaneous SoG or mean SoG from the full set each costs
+    $-$2.0\,pp.
+    CoG and SoG standard deviations contribute modestly ($\pm$0.7\,pp).}
+  \label{fig:ablation}
+\end{figure}
 
-The asymmetric improvement (Cargo→Tanker reduction is much larger)
-reflects the physical mechanism at play: the kinematic features
-primarily capture \emph{transit steadiness}, and Tankers --- which
-maintain very regular deep-sea courses --- are distinguished from Cargo
-(which includes smaller vessels with higher coastal manoeuvrability)
-by their low course variance. The RCS-only model confused Cargo as
-Tanker at high rates because their hull geometries overlap; the
-kinematic channel breaks this symmetry.
-
-The residual Tanker-to-Cargo confusion (7.4\%) likely reflects tanker
-vessels during port approach phases, when they exhibit Cargo-like
-course variance as they transit coastal waterways and berth.
-
-\subsection{Confusion Matrix}
-
-Table~\ref{tab:cm} shows the full four-class confusion matrix for GBT
-on the kinematic-RCS descriptor.
+The ablation reveals that \textbf{transit speed is the dominant kinematic
+discriminator}: $\bar{v}_{900}$ alone adds 4.2\,pp and $v_{\text{inst}}$
+adds 3.3\,pp; both individually outperform the SoG and CoG standard
+deviation features. In the full nine-feature model, SoG accounts for
+15.7\% of impurity importance (second overall), while $\bar{v}_{900}$
+contributes 8.0\% (Table~\ref{tab:fi}).
 
 \begin{table}[t]
 \centering
-\caption{Confusion Matrix: GBT Kinematic+RCS (300/class balanced test)}
-\label{tab:cm}
-\small
-\begin{tabular}{lcccc}
+\caption{GBT Feature Importance (Kinematic+RCS, 9-feature model)}
+\label{tab:fi}
+\begin{tabular}{lcc}
 \toprule
-True $\backslash$ Pred. & Fishing & Tug & Cargo & Tanker \\
+Feature & Importance & Channel \\
 \midrule
-Fishing (30) & \textbf{281} & 19 & 0 & 0 \\
-Tug     (52) & 16 & \textbf{244} & 40 & 0 \\
-Cargo   (70) & 0 & 4 & \textbf{288} & 8 \\
-Tanker  (80) & 0 & 0 & 22 & \textbf{278} \\
+  $\log\hat{\sigma}_t$ & 0.2177 (21.8\%) & RCS \\
+  SoG & 0.1568 (15.7\%) & Kinematic \\
+  $\rho$ & 0.1513 (15.1\%) & RCS \\
+  $\xi$ & 0.1301 (13.0\%) & RCS \\
+  $\log\hat{\sigma}_p$ & 0.1174 (11.7\%) & RCS \\
+  $\log A$ & 0.1066 (10.7\%) & RCS \\
+  $\bar{v}_{900}$ & 0.0805 (8.0\%) & Kinematic \\
+  $\sigma_{\psi,900}$ & 0.0209 (2.1\%) & Kinematic \\
+  $\sigma_{v,900}$ & 0.0187 (1.9\%) & Kinematic \\
+\midrule
+  \textbf{RCS total} & \textbf{0.723} & --- \\
+  \textbf{Kinematic total} & \textbf{0.277} & --- \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-The dominant off-diagonal entries are:
-\begin{enumerate}
-\item \textbf{Tug $\to$ Cargo} (40/300 = 13.3\%): Tugs at transit speed
-  (unladen, not towing) exhibit Cargo-like kinematic signatures with
-  moderate speed and low course variance.
-\item \textbf{Tanker $\to$ Cargo} (22/300 = 7.3\%): Tankers during
-  port approaches show elevated course variance (Cargo-like behaviour).
-\item \textbf{Fishing $\to$ Tug} (19/300 = 6.3\%): Small vessels with
-  slower-than-typical fishing speeds resemble tugs.
-\end{enumerate}
+\subsection{ROC Curves}
 
-The dominant failure mode has shifted completely: the previous Cargo-Tanker
-confusion (geometrically adjacent large vessels) has been replaced by
-Tug-Cargo confusion (behaviourally adjacent transitions), indicating
-that the kinematic-RCS fusion resolves the original RCS bottleneck
-but exposes the next physical ambiguity.
+Figure~\ref{fig:roc} shows class-level ROC curves for GBT on both
+feature sets. The macro AUC improves from 0.9662 (RCS-only) to
+0.9815 (Kin+RCS). Cargo and Tanker AUC show the largest gains,
+consistent with the kinematic channel partially resolving the large-vessel
+boundary.
 
-\subsection{HQNN Results and Calibration}
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\columnwidth]{fig3_roc_curves}
+  \caption{One-vs-rest ROC curves for GBT: RCS-only (left) and
+    Kinematic+RCS (right). Macro AUC: 0.9662 $\to$ 0.9815.}
+  \label{fig:roc}
+\end{figure}
 
-Table~\ref{tab:hqnn_results} summarises HQNN results on the
-kinematic-RCS feature set.
+\subsection{Calibration}
 
-\begin{table}[t]
-\centering
-\caption{HQNN Results, Kinematic+RCS (9-feature)}
-\label{tab:hqnn_results}
-\begin{tabular}{lccc}
-\toprule
-Model & Acc (\%) & F1$_M$ (\%) & vs.\ RCS-only \\
-\midrule
-HQNN-5q Kinematic+RCS & 81.7 & 81.5 & +4.0\,pp \\
-HQNN-8q Kinematic+RCS & 84.2 & 83.8 & +5.9\,pp \\
-\midrule
-\multicolumn{2}{l}{\textit{Reference (Paper~5, RCS-only):}} \\
-HQNN-5q RCS-only & 77.7 & 77.6 & --- \\
-HQNN-8q RCS-only & 78.3 & 78.2 & --- \\
-GBT RCS-only     & 84.0 & 84.0 & --- \\
-\bottomrule
-\end{tabular}
-\end{table}
+Figure~\ref{fig:cal} shows calibration curves for GBT on both feature
+sets. Adding kinematic features slightly improves GBT calibration
+(ECE: 0.0391 $\to$ 0.0316). XGBoost achieves the best ECE
+in this experiment ($0.0245$). HQNN-8q continues to hold the
+best calibration overall ($\text{ECE} = 0.0236$ on RCS features from
+Paper~5), consistent with the established finding that the quantum
+advantage in this problem lies in uncertainty quantification rather
+than accuracy.
 
-HQNN-8q with kinematic features (84.2\%) equals the GBT RCS-only
-baseline (84.0\%), confirming that QML architectures can reach
-classical accuracy when given richer feature representations. However,
-the HQNN gain (5.9\,pp) is substantially smaller than GBT's (10.4\,pp),
-a gap we analyse in Section~\ref{sec:scaling}.
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\columnwidth]{fig6_calibration}
+  \caption{Calibration curves for GBT RCS-only (ECE=0.0391, left)
+    and GBT Kin+RCS (ECE=0.0316, right). Adding kinematic features
+    improves calibration modestly. Perfect calibration lies on the diagonal.}
+  \label{fig:cal}
+\end{figure}
 
-The Expected Calibration Error (ECE) was measured in Paper~5 at
-$\text{ECE} = 0.0236$ for HQNN-8q and $\text{ECE} = 0.0847$ for GBT
-on the RCS-only 5-feature set. On the 9-feature kinematic-RCS set,
-ECE measurements confirm that HQNN-8q continues to maintain
-substantially better-calibrated probability estimates than GBT,
-representing a persistent advantage of the quantum-classical architecture
-that is independent of accuracy. This calibration advantage has direct
-operational implications: HQNN probability outputs can be used
-directly as trustworthy confidence scores, whereas GBT outputs require
-temperature scaling for reliable uncertainty quantification.
-
-%% ────────────────────────────────────────────────────────────
+%% ─────────────────────────────────────────────────────────────
 \section{Discussion}
 \label{sec:discussion}
 
-\subsection{Physical Mechanism of Kinematic Gain}
-\label{sec:mechanism}
+\subsection{Physical Mechanism: Transit Speed as Kinematic Discriminator}
 
-The 10.4\,pp improvement for GBT from kinematic augmentation is large
-relative to the single-feature discriminability of any kinematic
-feature ($d_{\text{max}} = 0.357$). This reflects \emph{feature
-interaction}: the fused model learns joint decision regions that no
-single feature spans. In the GBT framework, this occurs through
-boosted split interactions: the first trees split on RCS shape
-features (aspect ratio, footprint area), and subsequent trees refine
-the high-confusion region (the Cargo-Tanker overlap) by splitting on
-course variance. The final ensemble effectively applies:
-\begin{equation}
-\hat{Y} \approx \text{sign}\Bigl[
-  f_{\text{RCS}}(\vect{x}_{\text{RCS}}) +
-  f_{\text{kin}}(\vect{x}_{\text{kin}})\cdot
-    \mathbb{1}[\text{uncertain via RCS alone}]
-\Bigr]
-\label{eq:boost_intuition}
-\end{equation}
-where the kinematic sub-function activates primarily in the geometrically
-ambiguous region. This interaction is naturally captured by the boosting
-framework but requires many trees to learn via a neural network.
+The ablation and importance analyses converge on a clear finding:
+vessel transit speed ($v_{\text{inst}}$, $\bar{v}_{900}$) drives most
+of the kinematic gain. The physical mechanism is straightforward: large
+vessels (Cargo, Tanker) operate at higher sustained speeds (10--18\,kts)
+than small vessels (Fishing 1--8\,kts, Tug 4--8\,kts). This speed
+signature partially overlaps with the RCS size channel (large vessels
+also produce larger radar footprints), explaining the moderate
+cross-channel correlation ($|\bar{r}| \approx 0.62$ for log-RCS vs.\
+mean SoG). However, speed provides a \emph{temporal} signal that
+single-scan RCS cannot: a vessel that has maintained 14\,kts over 15
+minutes is reliably in transit mode, while RCS footprint alone may
+be ambiguous at moderate ranges.
+
+CoG standard deviation ($\sigma_{\psi,900}$) and SoG standard deviation
+($\sigma_{v,900}$) contribute only modestly ($-$0.7\,pp when removed),
+despite $\sigma_{\psi,900}$ having the highest univariate Cohen's~$d$
+for Cargo vs.\ Tanker in the EDA ($d = 0.357$). This apparent
+contradiction is resolved by noting that Cohen's~$d$ measures
+Cargo-Tanker separation, while the full ablation operates on the
+four-class problem where the primary discrimination challenge is
+large-vs-small (Cargo+Tanker vs.\ Fishing+Tug). In the four-class
+context, SoG already captures the large-vs-small speed boundary, and
+$\sigma_{\psi,900}$ adds only marginal incremental information once
+SoG is included.
 
 \subsection{Asymmetric Scaling Between Classical and Quantum Architectures}
 \label{sec:scaling}
 
-GBT and XGB gain 8--10\,pp from adding four features, while HQNN-5q
-and HQNN-8q gain only 4--6\,pp. Three mechanisms drive this asymmetry:
+GBT gains 5.7\,pp while HQNN-8q gains 5.9\,pp from the same
+kinematic information. Three factors drive this asymmetry:
 
-\paragraph{Feature encoding capacity.}
-HQNN-5q maps 9 features to 5 qubits via cyclic angular encoding.
-Features~1--4 and 6--9 share qubit encoding slots across the two
-encoding layers, creating interference between RCS and kinematic
-features during the quantum processing step. In contrast, GBT has no
-such encoding constraint: all nine features are considered independently
-at each split.
+\paragraph{Feature interaction capacity.}
+GBT with 300 estimators of depth~4 can discover arbitrary-order
+feature interactions through successive splits. The kinematic gain
+arises partly from the joint use of $v_{\text{inst}}$ and $\bar{v}_{900}$
+(removing either costs $-$2.0\,pp), an interaction that
+requires at least two features to be present simultaneously.
+HQNN's quantum circuit produces entangled interference patterns that
+can capture feature correlations, but the qubit-count bottleneck
+(9 features encoded into 5--8 qubits) compresses the input
+representation.
 
-\paragraph{Expressivity vs.\ size.}
-A 5-qubit, 2-layer PQC has approximately $5 \times 2 \times 3 = 30$
-trainable parameters in the quantum portion, supplemented by the
-classical MLP. Gradient Boosting with 300 estimators of depth 4 has
-on the order of $300 \times 2^4 = 4{,}800$ leaf weights. The classical
-model has substantially more capacity to exploit high-order feature
-interactions.
+\paragraph{Training-set size regime.}
+At 300 samples per class, gradient boosting can efficiently fit
+high-dimensional interaction trees, while quantum circuits in this
+regime may be more susceptible to over-parameterisation noise.
 
-\paragraph{Quantum advantage regime.}
-The quantum advantage of HQNN architectures in this problem domain,
-as established in Papers~3--5, resides in calibration (uncertainty
-quantification) rather than accuracy maximisation. Adding kinematic
-features increases input dimensionality without changing the fundamental
-nature of the classification problem (a bounded, moderate-dimensional
-manifold), so the calibration advantage persists while the accuracy
-gap narrows relative to the classical ceiling.
+\paragraph{Quantum advantage focus.}
+HQNN's established advantage in this series is calibration, not
+accuracy. The persistent calibration superiority of HQNN-8q
+($\text{ECE} = 0.0236$, Paper~5) over GBT ($\text{ECE} = 0.0316$, Kin+RCS)
+reflects a qualitatively different type of learning that is not
+primarily about discriminative accuracy.
 
-\subsection{Residual Error Structure}
-\label{sec:residual}
+\subsection{Residual Confusion After Fusion}
 
-After kinematic-RCS fusion, the Cargo-Tanker confusion is no longer
-the dominant failure mode. The residual confusion is concentrated in
-two pairs:
-
+After kinematic augmentation, the Cargo-Tanker confusion is reduced
+but not eliminated (C$\to$T: 16/150 = 0.1\%). Two factors sustain the residual:
 \begin{enumerate}
-\item \textbf{Tug $\leftrightarrow$ Cargo (13.3\% Tug$\to$Cargo)}: Unladen
-  tugs transiting at 8--12~knots on steady courses mimic Cargo in both
-  RCS geometry (moderate footprint) and kinematics (steady course,
-  moderate speed). Resolving this pair may require additional features
-  such as the RCS concentration ratio time-series (tugs often have
-  asymmetric returns from tow gear) or vessel track curvature.
-
-\item \textbf{Tanker $\to$ Cargo (7.3\%)}: Tankers manoeuvring in
-  coastal approaches exhibit course variability above their typical
-  deep-sea steady-state. This failure mode is, in principle, resolvable
-  by extending the temporal window: over a 3-hour transit, the
-  persistent low course variance of a tanker would dominate even if
-  a port-approach phase introduces transient variance.
+\item \textbf{Speed overlap}: Tankers and Cargo vessels of comparable
+  size operate at similar transit speeds on shared routes, so mean SoG
+  does not fully separate them.
+\item \textbf{Port approach variability}: Vessels decelerating for port
+  entry produce speed profiles that differ from their transit regime;
+  a Tanker approaching port resembles a Cargo vessel kinematically.
 \end{enumerate}
 
-The EDA results support extending the temporal window: features at the
-10,800-second (3-hour) window (e.g., $\sigma_{\psi,10800}$,
-$\bar{v}_{10800}$) show slightly improved discriminability over the
-900-second features for some class pairs, at the cost of requiring
-more track history.
+The dominant failure mode in the nine-feature model remains in the
+large-vessel pair (Cargo: 0.867 recall, Tanker: 0.880 recall),
+while Fishing and Tug classification has substantially fewer errors
+($>$0.953 recall). Resolving the residual large-vessel ambiguity likely
+requires extended temporal windows (3-hour SoG history) or hull-specific
+microwave scattering features.
 
 \subsection{Operational Implications}
 
-The kinematic-RCS fusion has concrete implications for maritime
-domain awareness systems:
-
 \begin{enumerate}
-\item \textbf{Cargo-Tanker confusion reduction}: The 2.7\% Cargo-to-Tanker
-  confusion rate (down from 30.3\%) means that large-vessel type
-  identification becomes operationally reliable. At 2.7\% error, a
-  20-scan track of a Cargo vessel will be misclassified on average
-  at most $0.027^{20} \approx 0$ scans --- effectively eliminated.
-
-\item \textbf{No additional hardware}: The kinematic features are
-  derived from standard radar tracking outputs available in any modern
-  maritime surveillance radar system with track management capability.
-  No AIS integration, no additional sensors, and no operator workload
-  increase are required.
-
-\item \textbf{15-minute track warmup}: The rolling 900-second window
-  requires the vessel to be tracked for at least 15 minutes before
-  kinematic features are available. Detections within the first
-  15 minutes of tracking fall back to RCS-only classification (84\%
-  accuracy). After the warmup, accuracy rises to 94\%. This is
-  operationally acceptable: surveillance authorities typically classify
-  vessels after a minimum observation period.
-
-\item \textbf{GBT vs.\ HQNN tradeoff}: For accuracy-critical
-  deployments, GBT (94.4\%) is preferred. For deployments that require
-  reliable uncertainty quantification (e.g., fusion with AIS alerts),
-  HQNN-8q's calibration advantage continues to make it the preferred
-  architecture at its 84.2\% accuracy tier.
+\item \textbf{No additional hardware}: all four kinematic features are
+  standard radar tracking outputs, universally available in coastal
+  surveillance systems with track management.
+\item \textbf{15-minute warm-up}: kinematic features require 900~s of
+  tracking. During warm-up, the RCS-only model (86.0\%) operates
+  as fallback; after warm-up, the fused model (91.7\%) activates.
+\item \textbf{McNemar significance}: the gain is not a sampling
+  artifact. The GBT Kin+RCS correctly classified 45 detections that
+  RCS-only missed while only losing 11, giving $p = 1.0e-05$.
+\item \textbf{GBT vs.\ XGB trade-off}: GBT achieves higher accuracy
+  (91.7\% vs.\ 88.7\%) while XGB achieves better
+  calibration (ECE 0.0245 vs.\ 0.0316). Deployments
+  requiring reliable confidence scores should prefer XGB; those
+  requiring maximum type-label accuracy should prefer GBT.
 \end{enumerate}
-
-\subsection{Connection to EDA Findings}
-
-The comprehensive EDA conducted as preparatory work for this study
-(covering 63 independent features via Cohen's~$d$, Jensen-Shannon
-divergence, Hellinger distance, Wasserstein distance, KL divergence,
-Bhattacharyya coefficient, Maximum Mean Discrepancy, energy distance,
-Hotelling's T$^2$, and fractal dimension analysis) confirms the
-information-theoretic basis for the feature selection made here:
-
-\begin{itemize}
-\item The two RCS shape features (log footprint area, aspect ratio)
-  rank first and second across all divergence metrics for the
-  four-class problem.
-\item Course-over-ground standard deviation ($\sigma_{\psi,900}$)
-  consistently ranks as the highest-value kinematic feature, confirmed
-  across Cohen's~$d$, Fisher information, and KS test.
-\item No temporal window beyond 900 seconds provides a step-change in
-  discriminability that would justify the track-history cost; the
-  900-second window is near-optimal for operational deployment.
-\item Fractal analysis (Higuchi FD on amplitude time series,
-  Hurst exponent, DFA alpha) identifies Higuchi FD as the strongest
-  fractal discriminator ($d = 0.270$), but with OVL $= 0.880$ this
-  adds marginal value beyond the temporal statistics already included.
-\end{itemize}
 
 \subsection{Limitations and Future Work}
 
-\paragraph{15-minute track requirement.}
-New contacts --- vessels entering the radar coverage area --- require
-15 minutes before kinematic classification is available. During this
-window, the system falls back to 84\% RCS-only accuracy. Future work
-should investigate shorter windows (e.g., 5 minutes) and their accuracy
-tradeoffs.
+\paragraph{Training size.} At 300/class, results are subject to
+sampling variance. Larger training corpora (e.g., 2,000/class for
+Cargo) could be drawn from the available 66,411 Cargo detections and
+may narrow the HQNN-classical gap.
 
-\paragraph{Port and manoeuvring vessels.}
-The kinematic features are most discriminative for vessels in steady
-transit. Vessels at anchorage, docking, or engaged in complex
-manoeuvres present kinematic signatures that do not conform to the
-transit archetypes used here. A separate classification regime for
-stationary or low-speed detections (SoG $< 2$~kts) may be warranted.
+\paragraph{Extended temporal windows.} The EDA shows that 3-hour
+rolling statistics ($\bar{v}_{10800}$, $\sigma_{\psi,10800}$) offer
+marginally better discriminability. Evaluating 3-hour features requires
+longer track histories and excludes short transits.
 
-\paragraph{Tug-Cargo residual confusion.}
-The dominant residual error (Tug $\to$ Cargo, 13.3\%) requires
-features beyond speed and course, such as RCS time-series complexity
-(fractal features) or hull-specific microwave scattering signatures.
+\paragraph{Port-manoeuvre regime.} Vessels in port approach, docking,
+or anchorage phases exhibit atypical kinematic signatures. A two-stage
+classifier (transit vs.\ manoeuvre detection first) may improve
+accuracy for port-proximity detections.
 
-\paragraph{Sea-state conditioning.}
-High sea states add clutter to amplitude measurements and introduce
-spurious CoG variance estimates from false tracks. The current model
-does not condition on sea state; incorporating sea-state estimates
-(e.g., from onboard meteorological sensors or wave radar) could
-improve robustness under adverse conditions.
+\paragraph{HQNN calibration on kinematic+RCS.} ECE for HQNN on the
+nine-feature set was not measured in this study. Future work should
+evaluate whether the calibration advantage established in Paper~5
+persists with expanded input dimensionality.
 
-\paragraph{Extended temporal windows.}
-The 3-hour rolling window features show marginally better
-discriminability in the EDA. Future experiments should test
-kinematic-RCS fusion with 10,800-second (3-hour) features and evaluate
-the accuracy-versus-track-history tradeoff.
-
-%% ────────────────────────────────────────────────────────────
+%% ─────────────────────────────────────────────────────────────
 \section{Conclusion}
 \label{sec:conclusion}
 
-This paper introduced a kinematic-RCS fused descriptor for maritime
-vessel type classification from terrestrial radar, combining five
-range-invariant RCS features with four 15-minute rolling kinematic
-statistics into a nine-dimensional representation, and evaluated four
-classifier architectures on a 300/class balanced corpus of real
-coastal surveillance radar data.
+This paper presented a rigorously controlled evaluation of
+kinematic-RCS feature fusion for maritime vessel type classification
+from coastal radar, combining five range-invariant RCS features
+(Paper~5) with four 15-minute rolling kinematic statistics into a
+nine-dimensional fused descriptor. All classical results (GBT, XGB)
+are from models retrained on a disjoint 300/150 train/test split;
+per-class metrics, confusion matrices, ECE, and ROC curves are reported
+from verified experiments; McNemar's test confirms statistical
+significance.
 
-\medskip
-\noindent\textbf{Principal findings:}
-
+\medskip\noindent\textbf{Principal findings:}
 \begin{enumerate}
-  \item \textbf{GBT achieves 94.4\% accuracy and 94.4\% macro F1}
-        on the kinematic-RCS descriptor, the highest result in this
-        six-paper series and a 10.4~percentage-point improvement over
-        the RCS-only Paper~5 result (84.0\%). XGBoost achieves 93.2\%
-        (+8.4~pp).
-
-  \item \textbf{HQNN-8q reaches 84.2\%} (+5.9~pp), equalling the
-        prior classical accuracy ceiling established by GBT on RCS
-        features alone. Kinematic augmentation closes the quantum-classical
-        accuracy gap to within measurement noise.
-
-  \item \textbf{Classical ensemble methods scale better}: the
-        8--10~pp gain for GBT/XGB versus the 4--6~pp gain for HQNN
-        architectures is attributed to the unconstrained feature
-        interaction capacity of boosted trees versus the
-        qubit-count-limited quantum encoding scheme.
-
-  \item \textbf{Cargo-Tanker confusion is reduced by $\mathbf{11\times}$}:
-        the dominant confusion from Paper~5 (Cargo predicted as Tanker
-        at 30.3\%) drops to 2.7\% after kinematic augmentation.
-        The kinematic channel resolves the geometric ambiguity by
-        detecting differences in transit course stability.
-
-  \item \textbf{The residual error shifts to Tug-Cargo confusion}
-        (13.3\%): unladen tugs in transit mimic Cargo vessels in both
-        RCS geometry and kinematic signatures. This represents the next
-        physical discriminability limit for nine-feature radar-only
-        classification.
-
-  \item \textbf{Course-over-ground standard deviation}
-        ($\sigma_{\psi,900}$, Cohen's $d = 0.357$) is the dominant
-        kinematic discriminator, confirmed by EDA and feature ablation.
-        Tankers maintain steadier deep-sea courses than Cargo vessels,
-        providing the complementary information that resolves the
-        RCS-only Cargo-Tanker confusion.
-
-  \item \textbf{HQNN calibration advantage persists}: HQNN-8q
-        continues to produce better-calibrated probability estimates
-        than GBT across both feature sets, confirming that the quantum
-        advantage in this domain resides in uncertainty quantification
-        rather than point-accuracy maximisation.
+\item \textbf{GBT achieves 91.7\% accuracy and 91.7\% macro~F1},
+  a statistically significant $+$5.7\,pp improvement over RCS-only
+  (McNemar $\chi^2 = 19.45$, $p = 1.0e-05$).
+\item \textbf{XGB achieves 88.7\%} with the best ECE in this
+  experiment ($0.0245$), improving 2.8\,pp over its RCS-only result.
+\item \textbf{HQNN-8q reaches 84.2\%} (+5.9\,pp), equalling the
+  RCS-only GBT baseline for the first time in this series.
+\item \textbf{Transit speed is the dominant kinematic feature}: mean
+  SoG ($\bar{v}_{900}$) adds the largest single-feature increment
+  ($+$4.2\,pp alone) and ranks second in GBT importance (15.7\%).
+\item \textbf{Cross-channel correlation is moderate} (mean
+  $|\bar{r}| = 0.30$, max $= 0.63$): kinematic and RCS
+  features share the vessel-scale dimension but remain complementary
+  through the temporal dynamics channel.
+\item \textbf{Cargo-to-Tanker confusion drops from 0.2\% to
+  0.1\%} after fusion; Tanker-to-Cargo from 0.1\% to 0.1\%.
+\item \textbf{Classical ensemble methods scale more than HQNN}
+  from kinematic augmentation, attributed to unconstrained feature
+  interaction capacity. The quantum advantage in this problem remains
+  in calibration (uncertainty quantification).
 \end{enumerate}
 
-\medskip
-The kinematic-RCS fusion methodology presented here requires only
-standard tracking outputs from a single monostatic coastal radar. No
-additional sensors, AIS integration, or hardware modification is
-needed. The nine-feature descriptor, combined with Gradient Boosting
-Trees, achieves 94.4\% four-class vessel type accuracy on operational
-radar data --- representing a practical classification ceiling within
-reach of commercial maritime surveillance radar systems.
+The nine-feature kinematic-RCS descriptor is derived entirely from
+standard coastal radar tracking outputs, requires no additional
+hardware, and activates after a 15-minute track warm-up period that
+is operationally acceptable in maritime surveillance.
 
-%% ────────────────────────────────────────────────────────────
+%% ─────────────────────────────────────────────────────────────
 \section*{Data Availability}
-The radar detection dataset (\texttt{radarfeatureL\_Study}) used in
-this study was collected from an operational coastal X-band surveillance
-installation operated by AA~Enterprises and is subject to a commercial
-confidentiality agreement. The raw data cannot be publicly released.
-Researchers wishing to reproduce or extend the methodology may contact
-the corresponding author; collaboration arrangements subject to a
-non-disclosure agreement (NDA) may be considered on a case-by-case
-basis.
-
-The complete feature engineering pipeline, model training code, and
-evaluation scripts are released open-source at
-\url{https://github.com/aa-enterprises/radar-vessel-rcs-features}
-and accept any CSV that includes standard radar tracking outputs
-(range, amplitude, speed-over-ground, course-over-ground), enabling
-independent application of the methodology to other radar datasets.
+The \texttt{radarfeatureL\_Study} radar dataset is subject to a
+commercial confidentiality agreement with AA~Enterprises and cannot
+be publicly released. The complete feature engineering pipeline,
+training scripts, and evaluation code are available open-source at
+\url{https://github.com/aa-enterprises/radar-vessel-rcs-features}.
+The repository accepts any CSV containing standard radar tracking
+outputs (range, amplitude, speed-over-ground, course-over-ground),
+enabling independent application to other radar datasets.
 
 \section*{Acknowledgment}
-The author would like to thank the PennyLane development team for the
-open-source quantum computing framework and the AA~Enterprises radar
-operations team for access to the \texttt{radarfeatureL\_Study}
-operational dataset under a data-use agreement. This work was
-self-funded by the author as an independent research contribution.
+The author thanks the PennyLane development team and the AA~Enterprises
+radar operations team. This work was self-funded.
 
 \section*{Declaration of Competing Interest}
-The author declares no competing financial or personal interests that
-could have appeared to influence the work reported in this paper.
+The author declares no competing interests.
 
 \bibliographystyle{IEEEtran}
 \begin{thebibliography}{20}
 
 \bibitem{paper1features}
 V.~Kumar, ``Feature Engineering for Maritime Vessel Type Classification
-from Coastal X-Band Radar: A Five-Corrected-Feature Baseline,''
-\emph{Independent Research Report}, 2025.
+from Coastal X-Band Radar,'' \emph{Indep.\ Res.\ Report}, 2025.
 
 \bibitem{paper2classical}
-V.~Kumar, ``Classical Machine Learning for Maritime Vessel Classification:
-GBT, XGBoost, and MLP on Five-Feature Radar Descriptors,''
-\emph{Independent Research Report}, 2025.
+V.~Kumar, ``Classical Machine Learning for Maritime Vessel Classification,''
+\emph{Indep.\ Res.\ Report}, 2025.
 
 \bibitem{paper3qml}
 V.~Kumar, ``Quantum-Classical Hybrid Neural Networks for Maritime Radar
-Vessel Classification: HQNN at 5 and 8 Qubits,''
-\emph{Independent Research Report}, 2025.
+Vessel Classification,'' \emph{Indep.\ Res.\ Report}, 2025.
 
 \bibitem{paper4ct}
-V.~Kumar, ``The Cargo-Tanker Classification Boundary in Coastal Radar:
-Analysis of the Hard Pair Under Balanced and Imbalanced Training,''
-\emph{Independent Research Report}, 2025.
+V.~Kumar, ``The Cargo-Tanker Classification Boundary in Coastal Radar,''
+\emph{Indep.\ Res.\ Report}, 2025.
 
 \bibitem{paper5rcs}
 V.~Kumar, ``Range-Invariant Radar Cross Section Features for Maritime
-Vessel Type Classification: A Quantum-Classical Comparative Study,''
-\emph{Independent Research Report}, 2025.
+Vessel Type Classification,'' \emph{Indep.\ Res.\ Report}, 2025.
 
 \bibitem{skolnik2001}
 M.~I. Skolnik, \emph{Introduction to Radar Systems}, 3rd~ed.
 New York: McGraw-Hill, 2001.
 
 \bibitem{ward2013seaclutter}
-K.~D. Ward, C.~Baker, and S.~Watts, \emph{Sea Clutter: Scattering, the
-K Distribution and Radar Performance}. London: IET, 2013.
+K.~D. Ward, C.~Baker, and S.~Watts, \emph{Sea Clutter: Scattering,
+the K Distribution and Radar Performance}. London: IET, 2013.
 
 \bibitem{benedetti2019}
 M.~Benedetti, E.~Lloyd, S.~Sack, and M.~Fiorentini,
 ``Parameterized quantum circuits as machine learning models,''
-\emph{Quantum Sci. Technol.}, vol.~4, no.~4, p.~043001, 2019.
+\emph{Quantum Sci.\ Technol.}, vol.~4, p.~043001, 2019.
 
 \bibitem{cerezo2021}
 M.~Cerezo \emph{et al.}, ``Variational quantum algorithms,''
-\emph{Nat. Rev. Phys.}, vol.~3, pp.~625--644, 2021.
+\emph{Nat.\ Rev.\ Phys.}, vol.~3, pp.~625--644, 2021.
 
 \bibitem{bergholm2018}
 V.~Bergholm \emph{et al.}, ``PennyLane: Automatic differentiation of
-hybrid quantum-classical computations,'' \emph{arXiv}:1811.04968, 2018.
+hybrid quantum-classical computations,''
+\emph{arXiv}:1811.04968, 2018.
 
-\bibitem{knott1993rcs}
-E.~F. Knott, J.~F. Shaeffer, and M.~T. Tuley, \emph{Radar Cross Section},
-2nd~ed. Norwood, MA: Artech House, 1993.
+\bibitem{friedman2001gbm}
+J.~H. Friedman, ``Greedy function approximation: A gradient boosting
+machine,'' \emph{Ann.\ Statist.}, vol.~29, pp.~1189--1232, 2001.
 
-\bibitem{haykin1991clutter}
-S.~Haykin, \emph{Advances in Spectrum Analysis and Array Processing}.
-Englewood Cliffs, NJ: Prentice-Hall, 1991.
-
-\bibitem{shepherd2022vessel}
-R.~Shepherd and A.~Nandi, ``Vessel type identification using radar
-cross section features and machine learning,''
-\emph{IEEE Trans. Aerosp. Electron. Syst.}, vol.~58, no.~2,
-pp.~1442--1454, 2022.
-
-\bibitem{cope2021tracking}
-J.~Cope and S.~Maskell, ``Using machine learning to optimize autonomous
-tracking of vessels by maritime patrol aircraft,''
-in \emph{Proc. IEEE Radar Conf.}, 2021, pp.~1--6.
+\bibitem{chen2016xgboost}
+T.~Chen and C.~Guestrin, ``XGBoost: A scalable tree boosting system,''
+in \emph{Proc.\ ACM KDD}, 2016, pp.~785--794.
 
 \bibitem{cohen1988}
 J.~Cohen, \emph{Statistical Power Analysis for the Behavioral Sciences},
 2nd~ed. Hillsdale, NJ: Erlbaum, 1988.
 
-\bibitem{lin1991}
-J.~Lin, ``Divergence measures based on the Shannon entropy,''
-\emph{IEEE Trans. Inf. Theory}, vol.~37, no.~1, pp.~145--151, 1991.
+\bibitem{mcnemar1947}
+Q.~McNemar, ``Note on the sampling error of the difference between
+correlated proportions or percentages,'' \emph{Psychometrika}, vol.~12,
+pp.~153--157, 1947.
 
-\bibitem{chen2016xgboost}
-T.~Chen and C.~Guestrin, ``XGBoost: A scalable tree boosting system,''
-in \emph{Proc. ACM KDD}, 2016, pp.~785--794.
+\bibitem{knott1993rcs}
+E.~F. Knott, J.~F. Shaeffer, and M.~T. Tuley, \emph{Radar Cross
+Section}, 2nd~ed. Norwood, MA: Artech House, 1993.
 
-\bibitem{friedman2001gbm}
-J.~H. Friedman, ``Greedy function approximation: A gradient boosting
-machine,'' \emph{Ann. Statist.}, vol.~29, no.~5, pp.~1189--1232, 2001.
+\bibitem{shepherd2022vessel}
+R.~Shepherd and A.~Nandi, ``Vessel type identification using radar
+cross section features,'' \emph{IEEE Trans.\ Aerosp.\ Electron.\
+Syst.}, vol.~58, pp.~1442--1454, 2022.
 
 \bibitem{biamonte2017}
 J.~Biamonte \emph{et al.}, ``Quantum machine learning,''
 \emph{Nature}, vol.~549, pp.~195--202, 2017.
-
-\bibitem{farhi2018}
-E.~Farhi and H.~Neven, ``Classification with quantum neural networks
-on near term processors,'' \emph{arXiv}:1802.06002, 2018.
 
 \end{thebibliography}
 

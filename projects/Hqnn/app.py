@@ -1557,7 +1557,9 @@ if _cur == 5:
 
     inf_mode = st.radio(
         "Mode",
-        ["🔮 Single Model Inference", "🏆 Benchmark — compare all saved models"],
+        ["🔮 Single Model Inference",
+         "🚢 Track-Level Inference (GBT, requires ObjID column)",
+         "🏆 Benchmark — compare all saved models"],
         horizontal=True,
         key="inf_mode_radio",
     )
@@ -1905,6 +1907,246 @@ if _cur == 5:
                         st.error(f"Inference failed: {e}")
                         raise
     
+    # ══════════════════════════════════════════════════════════
+    #  TRACK-LEVEL INFERENCE MODE
+    # ══════════════════════════════════════════════════════════
+    elif inf_mode == "🚢 Track-Level Inference (GBT, requires ObjID column)":
+        _TRK_MODEL_PATH = _MODELS_DIR / 'gbt_track_feat_model.pkl'
+        _TRK_PRE_PATH   = _MODELS_DIR / 'track_feat_preprocessor.pkl'
+
+        if not _TRK_MODEL_PATH.exists() or not _TRK_PRE_PATH.exists():
+            st.error(
+                "Track-level model files not found in `saved_models/`.  \n"
+                "Run `python /tmp/save_track_model.py` to train and save the model first."
+            )
+            st.stop()
+
+        with open(_TRK_MODEL_PATH, 'rb') as _f:
+            _trk_model = pickle.load(_f)
+        with open(_TRK_PRE_PATH, 'rb') as _f:
+            _trk_pre = pickle.load(_f)
+
+        _trk_class_names = _trk_pre['class_names']
+        _trk_feats       = _trk_pre['feature_cols']    # 46 track-level stat features
+        _trk_det_feats   = _trk_pre['det_feats']       # 9 detection-level features needed
+        _trk_scaler      = _trk_pre['scaler']
+        _trk_col_means   = _trk_pre['col_means']
+        _trk_le          = _trk_pre['label_encoder']
+
+        st.info(
+            "**Track-Level GBT** classifies each vessel track (ObjID group) using "
+            "5 order statistics (mean / std / skew / min / max) over 9 detection-level "
+            "features → 46 features per track + log(n_det).  \n"
+            f"**Classes:** {', '.join(_trk_class_names)}  \n"
+            "**Required raw columns:** `ObjID`, `PeakAmplitude`, `TotalAmplitude`, `range`, "
+            "`down_range_extent`, `az_extent_m`, `RSog`, `measured_sog_avg_900`, "
+            "`measured_sog_std_900`, `measured_cog_std_900`"
+        )
+
+        st.subheader("1 · Upload Radar CSV")
+        trk_file = st.file_uploader(
+            "Upload raw radar CSV (must contain ObjID and raw measurement columns)",
+            type=["csv", "txt"],
+            key="track_infer_upload",
+        )
+
+        if trk_file:
+            try:
+                _dp_trk = DataProcessor()
+                _trk_raw = _dp_trk.load_csv(trk_file)
+            except Exception as _e:
+                st.error(f"Failed to load CSV: {_e}")
+                st.stop()
+
+            st.success(f"Loaded — {_trk_raw.shape[0]} rows × {_trk_raw.shape[1]} columns")
+            with st.expander("Raw data preview", expanded=False):
+                st.dataframe(_trk_raw.head(20))
+
+            # Validate ObjID column
+            if 'ObjID' not in _trk_raw.columns:
+                st.error("CSV must contain an `ObjID` column to identify tracks.")
+                st.stop()
+
+            st.subheader("2 · Run Track-Level Inference")
+            if st.button("Run Track Inference", type="primary"):
+                with st.spinner("Engineering track features and running GBT..."):
+                    try:
+                        from scipy import stats as _scipy_stats
+
+                        _trk_df = _trk_raw.copy()
+
+                        # ── Detection-level feature engineering (same as paper7b) ──
+                        _R  = _trk_df['range'].clip(lower=1.0)
+                        _Ap = _trk_df['PeakAmplitude'].clip(lower=1e-9)
+                        _At = _trk_df['TotalAmplitude'].clip(lower=1e-9)
+
+                        # Cross-range normalisation
+                        if 'az_extent_m' in _trk_df.columns and 'cross_range_extent' not in _trk_df.columns:
+                            _ec = (_trk_df['az_extent_m'] * _trk_df['range']).clip(lower=1e-6)
+                        elif 'cross_range_extent' in _trk_df.columns:
+                            _ec = _trk_df['cross_range_extent'].clip(lower=1e-6)
+                        else:
+                            _ec = pd.Series(np.ones(len(_trk_df)), index=_trk_df.index)
+                            st.warning("Neither `az_extent_m` nor `cross_range_extent` found — extent features set to 1.")
+
+                        _er = _trk_df['down_range_extent'].clip(lower=0.1) if 'down_range_extent' in _trk_df.columns else pd.Series(np.ones(len(_trk_df)), index=_trk_df.index)
+
+                        _trk_df['log_peak_rcs']  = np.log(_Ap) + 4 * np.log(_R)
+                        _trk_df['log_total_rcs'] = np.log(_At) + 4 * np.log(_R)
+                        _trk_df['rcs_conc']      = _Ap / _At
+                        _trk_df['aspect_ratio']  = _er / _ec
+                        _trk_df['footprint_m2']  = np.log((_er * _ec).clip(lower=1e-3))
+                        if 'RSog' in _trk_df.columns:
+                            _trk_df['sog'] = _trk_df['RSog']
+
+                        # Keep only rows with all needed det-level feats
+                        _have_feats = [f for f in _trk_det_feats if f in _trk_df.columns]
+                        _missing_feats = [f for f in _trk_det_feats if f not in _trk_df.columns]
+                        if _missing_feats:
+                            st.warning(f"Missing detection features (will skip): `{_missing_feats}`")
+
+                        _trk_df = _trk_df.dropna(subset=_have_feats + ['ObjID'])
+
+                        # ── Build one row per ObjID ──
+                        _stat_names = _trk_pre['stat_names']
+                        _rows = []
+                        for _oid, _grp in _trk_df.groupby('ObjID'):
+                            _n = len(_grp)
+                            _row = {'ObjID': _oid, 'n_det': _n}
+                            if 'Type' in _grp.columns:
+                                _row['Type'] = _grp['Type'].iloc[0]
+                            for _f in _have_feats:
+                                _vals = _grp[_f].values.astype(float)
+                                _row[f'{_f}_mean'] = np.mean(_vals)
+                                _row[f'{_f}_std']  = np.std(_vals, ddof=0) if _n > 1 else 0.0
+                                _row[f'{_f}_skew'] = float(_scipy_stats.skew(_vals)) if _n > 2 else 0.0
+                                _row[f'{_f}_min']  = np.min(_vals)
+                                _row[f'{_f}_max']  = np.max(_vals)
+                            _rows.append(_row)
+
+                        _trk_feat_df = pd.DataFrame(_rows)
+                        _trk_feat_df['log_n_det'] = np.log(_trk_feat_df['n_det'])
+                        _trk_feat_df.replace([np.inf, -np.inf], np.nan, inplace=True)
+
+                        # Select model features, fill NaN with training col_means
+                        _avail_trk_feats = [f for f in _trk_feats if f in _trk_feat_df.columns]
+                        _X_trk = _trk_feat_df[_avail_trk_feats].copy()
+                        for _col in _avail_trk_feats:
+                            _fill_val = _trk_col_means.get(_col, 0.0)
+                            _X_trk[_col] = _X_trk[_col].fillna(_fill_val)
+
+                        # Add any missing track features as zeros
+                        for _col in _trk_feats:
+                            if _col not in _X_trk.columns:
+                                _X_trk[_col] = _trk_col_means.get(_col, 0.0)
+                        _X_trk = _X_trk[_trk_feats]  # enforce column order
+
+                        _X_scaled = _trk_scaler.transform(_X_trk.values.astype(np.float64))
+                        _trk_proba = _trk_model.predict_proba(_X_scaled)
+                        _trk_pred_idx    = _trk_proba.argmax(axis=1)
+                        _trk_pred_labels = [_trk_class_names[int(i)] for i in _trk_pred_idx]
+                        _trk_confidence  = _trk_proba.max(axis=1)
+
+                        # ── Build results dataframe ──
+                        _trk_result = pd.DataFrame({
+                            'ObjID':           _trk_feat_df['ObjID'].values,
+                            'n_detections':    _trk_feat_df['n_det'].values,
+                            'predicted_class': _trk_pred_labels,
+                            'confidence':      _trk_confidence.round(4),
+                        })
+                        if 'Type' in _trk_feat_df.columns:
+                            _trk_result.insert(1, 'true_type', _trk_feat_df['Type'].values)
+                        for _i, _cls in enumerate(_trk_class_names):
+                            _trk_result[f'prob_{_cls}'] = _trk_proba[:, _i].round(4)
+
+                        st.success(f"Track inference complete — **{len(_trk_result)} tracks** classified.")
+
+                        # Summary metrics
+                        _tmc1, _tmc2, _tmc3 = st.columns(3)
+                        _tmc1.metric("Tracks classified", len(_trk_result))
+                        _tmc2.metric("Avg confidence", f"{_trk_confidence.mean():.1%}")
+                        _tmc3.metric("Low confidence (<50%)", int((_trk_confidence < 0.5).sum()))
+
+                        # Prediction distribution
+                        st.subheader("Track prediction distribution")
+                        from collections import Counter as _Counter
+                        _trk_counts = _Counter(_trk_pred_labels)
+                        _dist_trk = pd.DataFrame([
+                            {'Class': c,
+                             'Count': _trk_counts.get(c, 0),
+                             'Pct': f"{_trk_counts.get(c, 0) / len(_trk_result):.1%}"}
+                            for c in _trk_class_names
+                        ]).set_index('Class')
+                        st.dataframe(_dist_trk, use_container_width=True)
+
+                        # If ground truth available, show accuracy
+                        if 'Type' in _trk_feat_df.columns:
+                            try:
+                                from sklearn.metrics import (accuracy_score as _tacc,
+                                                             f1_score as _tf1)
+                                _true_codes = _trk_feat_df['Type'].values.astype(int)
+                                _true_lbl   = [_trk_class_names[int(_trk_le.transform([c])[0])]
+                                               for c in _true_codes
+                                               if c in _trk_pre['class_codes']]
+                                # Only evaluate on rows with known class codes
+                                _eval_mask = np.array([c in _trk_pre['class_codes']
+                                                       for c in _true_codes])
+                                if _eval_mask.sum() > 0:
+                                    _y_true_eval = [
+                                        _trk_class_names[int(_trk_le.transform([c])[0])]
+                                        for c in _true_codes[_eval_mask]
+                                    ]
+                                    _y_pred_eval = np.array(_trk_pred_labels)[_eval_mask].tolist()
+                                    _t_acc = _tacc(_y_true_eval, _y_pred_eval)
+                                    _t_f1  = _tf1(_y_true_eval, _y_pred_eval,
+                                                  average='macro', zero_division=0)
+                                    st.info(
+                                        f"Ground truth **Type** column detected.  \n"
+                                        f"**Accuracy:** {_t_acc:.1%}   **Macro F1:** {_t_f1:.3f}  \n"
+                                        f"*(evaluated on {int(_eval_mask.sum())} tracks with known class codes)*"
+                                    )
+                            except Exception as _gt_err:
+                                st.warning(f"Ground truth evaluation skipped: {_gt_err}")
+
+                        # Per-track predictions table
+                        st.subheader("Per-Track Predictions")
+                        _prob_cols_trk = [f'prob_{c}' for c in _trk_class_names]
+                        _disp_cols_trk = ['ObjID', 'n_detections']
+                        if 'true_type' in _trk_result.columns:
+                            _disp_cols_trk.append('true_type')
+                        _disp_cols_trk += ['predicted_class', 'confidence'] + _prob_cols_trk
+                        _max_style = 262144
+                        if _trk_result[_disp_cols_trk].size <= _max_style:
+                            st.dataframe(
+                                _trk_result[_disp_cols_trk].style.background_gradient(
+                                    subset=['confidence'], cmap='Greens'),
+                                use_container_width=True,
+                            )
+                        else:
+                            st.dataframe(_trk_result[_disp_cols_trk], use_container_width=True)
+
+                        # Low-confidence tracks
+                        _low_trk = _trk_result[_trk_confidence < 0.5]
+                        if len(_low_trk) > 0:
+                            with st.expander(
+                                f"⚠️ {len(_low_trk)} low-confidence tracks",
+                                expanded=False,
+                            ):
+                                st.dataframe(_low_trk[_disp_cols_trk], use_container_width=True)
+
+                        # Download
+                        _trk_csv = _trk_result.to_csv(index=False).encode()
+                        st.download_button(
+                            "⬇ Download Track Predictions CSV",
+                            data=_trk_csv,
+                            file_name="track_level_predictions.csv",
+                            mime='text/csv',
+                        )
+
+                    except Exception as _trk_e:
+                        st.error(f"Track inference failed: {_trk_e}")
+                        raise
+
     # ══════════════════════════════════════════════════════════
     #  BENCHMARK MODE — run ALL saved models and compare
     # ══════════════════════════════════════════════════════════

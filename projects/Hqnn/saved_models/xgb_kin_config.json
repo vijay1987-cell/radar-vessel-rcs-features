@@ -18,5 +18,9 @@
     "measured_cog_std_900",
     "measured_sog_avg_900"
   ],
-  "feature_engineering": "kinematic_rcs"
+  "feature_engineering": "kinematic_rcs",
+  "accuracy": 0.9324,
+  "f1_macro": 0.9318,
+  "f1_weighted": 0.9318,
+  "note": "XGB 9-feat KIN+RCS (Paper 6)"
 }
